@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "algorithm": {
+    "name": "ClearSky观星指数 (APP Stargazing Index) 建模实现",
+    "source": "stargazing.twtapp.com (FastAPI), App 3.4.0 建模 + 2016 条真实 API 采样",
+    "method": "线性回归(连续基础分) + 离散天气封顶",
+    "created": "2026-08-13",
+    "version": "1.0.0",
+    "formula": "score = clamp(base, 0, 100); if 天气封顶则取离散值"
+  },
+  "models": {
+    "icon": {"intercept": 89.6731, "cloudIndex": -88.057, "transparency": 5.2897, "seeing": 5.111, "dewRisk": -8.905},
+    "ifs":  {"intercept": 90.0422, "cloudIndex": -87.8491, "transparency": 5.1256, "seeing": 4.6664, "dewRisk": -32.6401}
+  },
+  "caps": [
+    {"value": 10.0, "label": "降水/雷暴/暴风雨", "trigger": "precipitation=True (外部字段, 如 7Timer prec_type/Open-Meteo)", "evidence": "昆明 IFS 大量 10.0, 7Timer 证实 prec=rain"},
+    {"value": 25.0, "label": "一般恶劣天气", "trigger": "cloudIndex>0.75 且 transparency<0.6, 或 cloudIndex>0.92 (无外部字段时的推断)", "evidence": "威远 IFS 三小时块 25.0 且 cloudIndex 仅 0.2-0.4, Open-Meteo 证实 0.1mm 降水"},
+    {"value": 55.0, "label": "雾/100%湿度+低云", "trigger": "fog=True 或 dewRisk>0.25 且 cloudIndex>0.5", "evidence": "哈尔滨 ICON: cloud≈0 但 RH=100%, score≈54.8-59.2"}
+  ],
+  "nightly_aggregation": {
+    "rule": "整晚分 ≈ 同一天历日夜间小时(20:00-24:00 + 00:00-05:00, 共10h)的简单平均",
+    "note": "local_hour 用 24.0 表示午夜 (部分时区有 0.3 偏移), 需按 hourLabel 或 模24 归一",
+    "validation": {"n": 12, "avg_abs_diff": 0.69, "max_abs_diff": 1.85, "data": "clearsky/data/nightly_probe.json"}
+  },
+  "validation": {
+    "method": "20 次随机地点分组 (10 训练/4 测试), 对从未见过的地点泛化",
+    "results": {
+      "icon": {
+        "all":     {"r2": "0.9762±0.0223", "mae": "0.732±0.444", "within1": "89.8%", "within3": "94.6%", "within5": "95.8%", "p95": 3.94},
+        "continuous_domain": {"r2": "0.9862±0.0189", "mae": "0.382±0.330", "within1": "93.4%", "within3": "98.2%", "within5": "99.1%", "p95": 1.40}
+      },
+      "ifs": {
+        "all":     {"r2": "0.8602±0.0742", "mae": "3.645±1.692", "within1": "73.5%", "within3": "77.3%", "within5": "80.0%", "p95": 20.52},
+        "continuous_domain": {"r2": "0.9534±0.0476", "mae": "1.524±1.157", "within1": "86.1%", "within3": "89.1%", "within5": "90.3%", "p95": 9.58}
+      }
+    },
+    "conclusion": "ICON 连续段已完全实现 (MAE≈0.4, 98% 误差<3); IFS 19.3% 行被隐藏天气封顶, 只能实现连续段; 封顶需外部降水/雾字段"
+  },
+  "data_files": {
+    "sample_dataset": "clearsky/data/sample_dataset.csv (2016 行: 14 地点×ICON/IFS×3天×24h)",
+    "nightly_probe": "clearsky/data/nightly_probe.json (2 地点×2 模型×3 晚整晚分聚合探针)",
+    "gh_search": "notes/gh_search/repos.json (GitHub 仓库搜索原始结果)"
+  },
+  "open_source_references": [
+    {"name": "mawinkler/astroweather", "url": "https://github.com/mawinkler/astroweather", "commit": "e0bcff4", "cloned_to": "upstream/gh/mawinkler_astroweather", "note": "pyastroweatherio: met.no 物理计算 (透明度/视宁度/LI/消光), HA 集成"},
+    {"name": "mbeher2200/DarkHours", "url": "https://github.com/mbeher2200/DarkHours", "commit": "f225e6e", "cloned_to": "upstream/gh/mbeher2200_DarkHours", "note": "加权几何平均 weather40/moon25/dark25/bortle10 + weather<4 硬封顶"},
+    {"name": "Haeniken/bot_astrosferum", "url": "https://github.com/Haeniken/bot_astrosferum", "commit": "9edee4c", "cloned_to": "upstream/gh/Haeniken_bot_astrosferum", "note": "ICON 全廓线多因子乘法 + Shapley 归因, 降水>0.05mm 一票否决"},
+    {"name": "giancarloerra/APD", "url": "https://github.com/giancarloerra/APD", "commit": "567da54", "cloned_to": "upstream/gh/giancarloerra_APD", "note": "极简: 100-0.8*云量%-0.2*降水概率%"}
+  ]
+}

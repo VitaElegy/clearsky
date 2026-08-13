@@ -1,0 +1,14 @@
+# 虚拟环境 / 缓存
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 大体积外部资产 (可通过 upstream/fetch_pinned.sh 按固定 commit 还原)
+apk/
+apktool/out/
+jadx/
+upstream/gh/
+
+# 临时文件
+*.tmp

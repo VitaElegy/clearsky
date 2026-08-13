@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ClearSky实现 · 观星指数 + 云图 + 光污染</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+:root{--bg:#070b16;--card:#10182b;--card2:#0c1220;--line:#1e2a44;--tx:#dbe6ff;--dim:#7c8db0;--ok:#3ddc84;--warn:#ffb020;--bad:#ff5252;--blue:#4d9fff;--purple:#a78bfa}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;padding-bottom:60px}
+header{padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(7,11,22,.92);backdrop-filter:blur(10px);z-index:50;border-bottom:1px solid var(--line)}
+header h1{font-size:17px;font-weight:700;letter-spacing:.5px}
+header .badge{font-size:10px;color:var(--dim);text-align:right;line-height:1.5}
+.container{padding:12px 12px 0;max-width:720px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{font-size:14px;color:var(--dim);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.card h2 .dot{width:6px;height:6px;border-radius:50%;background:var(--blue);display:inline-block}
+.loc-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.loc-row input{flex:1;min-width:150px;background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+.loc-row button{background:var(--blue);border:0;color:#fff;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:20px;padding:6px 12px;font-size:12px;cursor:pointer}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.score-big{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.score-big b{font-size:44px;font-weight:800}
+.score-big span{color:var(--dim);font-size:13px}
+.score-desc{font-size:12px;color:var(--dim);margin-bottom:10px}
+.bar{height:8px;border-radius:5px;background:var(--card2);overflow:hidden;margin:4px 0 10px}
+.bar i{display:block;height:100%;border-radius:5px}
+.hours{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.hour{flex:0 0 52px;text-align:center}
+.hour .t{font-size:11px;color:var(--dim)}
+.hour .s{height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin:3px 0}
+.hour .m{font-size:9px;color:var(--dim)}
+.scoreColor{background:linear-gradient(90deg,#ff5252,#ffb020 35%,#ffd54f 60%,#3ddc84 85%,#00e5ff)}
+.models{display:flex;gap:10px}
+.model{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.model h3{font-size:12px;color:var(--dim);margin-bottom:8px}
+.model .row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.model .d{font-size:11px;width:34px;color:var(--dim)}
+.model .mini{flex:1;height:7px;border-radius:4px;background:#0a1120;overflow:hidden}
+.model .mini i{display:block;height:100%;border-radius:4px}
+.model .v{font-size:11px;width:30px;text-align:right;font-weight:600}
+table.timer{width:100%;border-collapse:collapse;font-size:11px}
+table.timer th{color:var(--dim);font-weight:500;padding:4px 2px;text-align:center}
+table.timer td{padding:5px 2px;text-align:center;border-top:1px solid var(--line)}
+.cell{display:inline-block;min-width:22px;height:22px;line-height:22px;border-radius:5px;color:#fff;font-weight:700;font-size:11px}
+.lp-grid{display:flex;gap:12px;align-items:center}
+.lp-val{text-align:center}
+.lp-val b{font-size:30px;display:block}
+.lp-val small{color:var(--dim);font-size:11px}
+.lp-trend{margin-top:10px}
+.lp-trend .y{display:flex;gap:6px;align-items:center;font-size:10px;color:var(--dim);margin-bottom:3px}
+.lp-trend .y .mini{flex:1;height:7px;border-radius:4px;background:#0a1120;overflow:hidden}
+.lp-trend .y .mini i{display:block;height:100%;border-radius:4px}
+#map{height:300px;border-radius:12px;border:1px solid var(--line);z-index:1}
+.mapbtns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.mapbtns button{background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:7px 12px;font-size:12px}
+.meteor{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.meteor:last-child{border-bottom:0}
+.meteor .zhr{margin-left:auto;font-weight:700;color:var(--warn)}
+.meteor .tag{font-size:9px;background:var(--blue);color:#fff;border-radius:4px;padding:2px 5px}
+.meteor .tag.hot{background:var(--warn);color:#000}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.stat .k{font-size:11px;color:var(--dim)}
+.stat .v{font-size:18px;font-weight:700;margin-top:2px}
+.stat .s{font-size:10px;color:var(--dim);margin-top:2px}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.links a{flex:1;min-width:120px;text-align:center;background:var(--card2);border:1px solid var(--line);color:var(--tx);text-decoration:none;border-radius:10px;padding:10px;font-size:13px}
+.links a b{color:var(--blue)}
+.foot{color:var(--dim);font-size:10px;text-align:center;padding:16px;line-height:1.8}
+.loading{color:var(--dim);font-size:12px;padding:8px 0}
+.err{color:var(--bad);font-size:12px;padding:8px 0}
+#toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#222b45;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;display:none;z-index:99;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌌 ClearSky实现版</h1>
+  <div class="badge">观星指数 · 云图 · 光污染<br>数据源: ClearSkyAPI + 晴天钟 + 风云4B</div>
+</header>
+<div class="container">
+
+  <div class="card">
+    <h2><span class="dot"></span>观测地点</h2>
+    <div class="loc-row">
+      <input id="lat" type="number" step="0.0001" placeholder="纬度 29.5810">
+      <input id="lng" type="number" step="0.0001" placeholder="经度 104.5053">
+      <button onclick="applyLoc()">查询</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div style="font-size:11px;color:var(--dim)">提示: 点下方地图可直接选点</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>观星指数 · 未来5晚逐小时 <span style="color:#ffb020;font-size:10px">(ICON模型·预报)</span></h2>
+    <div id="scoreBig" class="loading">加载中…</div>
+    <div class="hours" id="hours"></div>
+    <div class="models" id="models"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>晴天钟对照 · 未来7天 <span style="color:#3ddc84;font-size:10px">(7Timer真实数据)</span></h2>
+    <div class="loading" id="timerLoad">加载中…</div>
+    <div style="overflow-x:auto"><table class="timer" id="timerTbl"></table></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>光污染等级 <span style="color:#3ddc84;font-size:10px">(DarkMap 2025 实测数据)</span></h2>
+    <div id="lpBox" class="loading">加载中…</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>卫星云图实况 <span style="color:#3ddc84;font-size:10px">(风云4B·每10分钟)</span></h2>
+    <div id="map"></div>
+    <div class="mapbtns">
+      <button onclick="setBase('tx')">腾讯地图</button>
+      <button onclick="setBase('gd')">高德卫星</button>
+      <button onclick="toggleCloud()" id="cloudBtn">云图: 开</button>
+      <button onclick="recenter()">回到选点</button>
+    </div>
+    <div class="loading" id="cloudInfo"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>流星雨 · 当前活跃 <span style="color:#3ddc84;font-size:10px">(内置星表)</span></h2>
+    <div id="meteors" class="loading">加载中…</div>
+    <details style="margin-top:8px"><summary style="font-size:12px;color:var(--dim)">查看全年流星雨</summary><div id="meteorAll"></div></details>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>天象 & 太阳活动 <span style="color:#3ddc84;font-size:10px">(实时)</span></h2>
+    <div id="astroEvents" class="loading">加载中…</div>
+    <div class="grid2" id="solarGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>导航到观测点</h2>
+    <div class="links">
+      <a id="linkAmap" href="#" target="_blank">🚗 <b>高德导航</b></a>
+      <a id="linkGoogle" href="#" target="_blank">🗺️ Google地图</a>
+      <a id="linkDarkmap" href="#" target="_blank">🌃 DarkMap光害</a>
+      <a id="linkWindy" href="#" target="_blank">🌬️ Windy云图</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    实现自《ClearSky》3.4.0 建模分析 · 接口: stargazing.twtapp.com / nodeapi.knockdream.com / 7timer.info / NSMC<br>
+    观星指数为预报(ICON/IFS模型)，晴天钟与卫星云图为实况，请以实况为准
+  </div>
+</div>
+<div id="toast"></div>
+<script src="vendor/leaflet.min.js"></script>
+<script>
+// ====== 配置 ======
+const KEY = "clearsky_demo_2026";
+const PRE = [
+  {name:"威远穹窿·穹窿地貌", lat:29.5810, lng:104.5053},
+  {name:"威远县严陵镇(出发地)", lat:29.5282, lng:104.6710},
+  {name:"乐贤半岛(晴空区)", lat:29.5221, lng:105.0927},
+  {name:"龙泉山城市森林公园", lat:30.5570, lng:104.4300},
+  {name:"峨眉山金顶", lat:29.5210, lng:103.3360},
+  {name:"泸沽湖(川)", lat:27.7000, lng:100.7900},
+  {name:"稻城亚丁", lat:28.4400, lng:100.3300},
+  {name:"重庆四面山", lat:28.5800, lng:106.3700},
+  {name:"四姑娘山", lat:31.1100, lng:102.9000},
+];
+let state = {lat:29.5810, lng:104.5053, name:"威远穹窿", base:"tx", cloud:true};
+let map, cloudLayer;
+
+// ====== 工具 ======
+const $ = id => document.getElementById(id);
+function toast(m){ const t=$("toast"); t.textContent=m; t.style.display="block"; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display="none",2600); }
+function fmt(n,d=1){ return (Math.round(n*10**d)/10**d).toFixed(d); }
+function scoreColor(s){ if(s>=80)return"#00e5ff"; if(s>=60)return"#3ddc84"; if(s>=40)return"#ffd54f"; if(s>=20)return"#ffb020"; return"#ff5252"; }
+function scoreTxt(s){ if(s>=80)return"极佳"; if(s>=60)return"良好"; if(s>=40)return"一般"; if(s>=20)return"较差"; return"极差"; }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+async function getJSON(url){ const r=await fetch(url,{headers:{Accept:"application/json"}}); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
+function proxy(url){ return "/proxy?url="+encodeURIComponent(url); }
+
+// ====== 地点 ======
+function renderChips(){
+  $("chips").innerHTML = PRE.map((p,i)=>`<span class="chip ${p.lat===state.lat&&p.lng===state.lng?"on":""}" onclick="pick(${i})">${p.name}</span>`).join("");
+}
+function pick(i){ const p=PRE[i]; state.lat=p.lat; state.lng=p.lng; state.name=p.name; $("lat").value=p.lat; $("lng").value=p.lng; renderChips(); loadAll(); }
+function applyLoc(){
+  const lat=parseFloat($("lat").value), lng=parseFloat($("lng").value);
+  if(isNaN(lat)||isNaN(lng)||lat<-90||lat>90||lng<-180||lng>180){ toast("坐标无效"); return; }
+  state.lat=lat; state.lng=lng; state.name=lat.toFixed(4)+","+lng.toFixed(4);
+  renderChips(); loadAll();
+}
+function recenter(){ if(map) map.setView([state.lat,state.lng],11); }
+
+// ====== 地图 ======
+function tileTemplate(base){
+  if(base==="tx") return {url:"https://rt{s}.map.gtimg.com/tile?z={z}&x={x}&y={y}&styleid=1", sub:"0123"};
+  if(base==="gd") return {url:"https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", sub:"1234"};
+}
+function initMap(){
+  map = L.map("map",{zoomControl:true, attributionControl:false}).setView([state.lat,state.lng],11);
+  map.createPane("cloud").style.zIndex = 450;
+  refreshBase();
+  const mk = L.marker([state.lat,state.lng],{draggable:true}).addTo(map);
+  mk.on("dragend",e=>{ const p=e.target.getLatLng(); state.lat=+p.lat.toFixed(4); state.lng=+p.lng.toFixed(4); $("lat").value=state.lat; $("lng").value=state.lng; renderChips(); loadAll(); });
+  map.on("click",e=>{ state.lat=+e.latlng.lat.toFixed(4); state.lng=+e.latlng.lng.toFixed(4); $("lat").value=state.lat; $("lng").value=state.lng; mk.setLatLng([state.lat,state.lng]); renderChips(); loadAll(); });
+}
+function refreshBase(){
+  if(!map) return;
+  map.eachLayer(l=>{ if(l instanceof L.TileLayer) map.removeLayer(l); });
+  const t = tileTemplate(state.base);
+  L.tileLayer(t.url,{tileSize:256,subdomains:t.sub,maxZoom:18}).addTo(map);
+  if(state.cloud) addCloud();
+}
+function setBase(b){ state.base=b; refreshBase(); }
+function toggleCloud(){ state.cloud=!state.cloud; $("cloudBtn").textContent="云图: "+(state.cloud?"开":"关"); if(state.cloud) addCloud(); else if(cloudLayer){ map.removeLayer(cloudLayer); cloudLayer=null; } }
+function addCloud(){
+  if(cloudLayer) map.removeLayer(cloudLayer);
+  // 风云4B 中国区圆盘, 近似叠加到中国区域(经度经校正的 bounds)
+  const B = L.latLngBounds([53.5,75.0],[3.0,137.0]);
+  const url = "https://img.nsmc.org.cn/CLOUDIMAGE/FY4B/AGRI/GCLR/FY4B_REGC_GCLR.JPG?_="+Date.now();
+  cloudLayer = L.imageOverlay(url, B, {opacity:0.55, pane:"cloud", interactive:false}).addTo(map);
+  const bt = new Date();
+  $("cloudInfo").textContent = "风云4B 中国区红外云图 · "+bt.toLocaleTimeString("zh-CN",{hour12:false})+" 加载(近似投影,仅供参考)";
+}
+
+// ====== 观星指数 ======
+async function loadScore(){
+  const u = `https://stargazing.twtapp.com/api/v1/stargazing/nightly/hourly/range?lat=${state.lat}&lng=${state.lng}&key=${KEY}`;
+  const d = await getJSON(u);
+  // 今晚总分
+  const today = d.days[0];
+  const avg = today.hourly.reduce((a,h)=>a+h.score,0)/today.hourly.length;
+  $("scoreBig").innerHTML = `<div class="score-big"><b style="color:${scoreColor(avg)}">${fmt(avg,0)}</b><span>/100 · ${scoreTxt(avg)} · ${today.date} 夜</span></div>
+  <div class="score-desc">云量 ${fmt(today.hourly[0].cloudIndex*100,0)}% · 透明度 ${fmt(today.hourly[0].transparency*100,0)}% · 视宁度 ${fmt(today.hourly[0].seeing*100,0)}% · 结露风险 ${fmt(today.hourly[0].dewRisk*100,0)}%</div>`;
+  // 逐小时条
+  let html="";
+  for(const day of d.days){
+    for(const h of day.hourly){
+      const label = h.hourLabel + (h.local_hour<12?"":"");
+      html += `<div class="hour"><div class="t">${h.hourLabel}</div><div class="s" style="background:${scoreColor(h.score)}">${fmt(h.score,0)}</div><div class="m">${day.date.slice(5)}</div></div>`;
+    }
+  }
+  $("hours").innerHTML = html;
+  // 多模型
+  const m = await getJSON(`https://stargazing.twtapp.com/api/v1/stargazing/nightly/point/range/all?lat=${state.lat}&lng=${state.lng}&key=${KEY}`);
+  let mh="";
+  for(const [mk,md] of Object.entries(m.models)){
+    mh += `<div class="model"><h3>${mk==="icon"?"ICON(德国)":"IFS(ECMWF)"} · ${mk}</h3>` + md.days.map(dd=>{
+      const c=scoreColor(dd.score);
+      return `<div class="row"><span class="d">${dd.date.slice(5)}</span><span class="mini"><i style="width:${dd.score}%;background:${c}"></i></span><span class="v" style="color:${c}">${fmt(dd.score,0)}</span></div>`;
+    }).join("") + `</div>`;
+  }
+  $("models").innerHTML = `<div style="font-size:11px;color:var(--dim);margin-bottom:6px">模型对比(同一地点,评分差异=预报不确定性):</div>` + mh;
+}
+
+// ====== 晴天钟 7Timer ======
+const TIMER_COLORS = {cloudcover:[["#0e6",">=1"],["#fe6",">=2"],["#f93",">=3"],["#f66",">=4"],["#c03",">=5"],["#63c",">=6"],["#30c",">=7"],["#009",">=8"]],"transparency":[["#e66","1"],["#e93","2"],["#fc6","3"],["#ff9","4"],["#cfc","5"],["#9fc","6"],["#6fc","7"],["#3f9","8"]],"seeing":[["#c00","1"],["#f60","2"],["#fc0","3"],["#ff9","4"],["#9f9","5"],["#6f6","6"],["#3c3","7"],["#0c0","8"]]};
+function timerCell(v,type){ const arr=TIMER_COLORS[type]||[]; for(const [c,th] of arr){ if(v<=parseInt(th)) return `<span class="cell" style="background:${c}">${v}</span>`; } return `<span class="cell" style="background:#00a">${v}</span>`; }
+async function loadTimer(){
+  $("timerLoad").textContent="";
+  const d = await getJSON(proxy(`https://www.7timer.info/bin/astro.php?lon=${state.lng}&lat=${state.lat}&ac=0&unit=metric&output=json&tzshift=8`));
+  // 转本地时间: 时间点为 3,6,9,12,... 从 init 时刻开始
+  const init = d.init; const y=+init.slice(0,4), mo=+init.slice(4,6), da=+init.slice(6,8), hh=+init.slice(8,10);
+  const start = new Date(y,mo-1,da,hh+8,0,0); // 本地时
+  const rows = d.dataseries.map((p,i)=>{
+    const t = new Date(start.getTime() + p.timepoint*3600e3);
+    const hm = t.getHours().toString().padStart(2,"0")+":00";
+    return `<tr><td>${(t.getMonth()+1)+"/"+t.getDate()}</td><td>${hm}</td><td>${timerCell(p.cloudcover,"cloudcover")}</td><td>${timerCell(p.transparency,"transparency")}</td><td>${timerCell(p.seeing,"seeing")}</td><td>${p.rh2m}%</td><td>${p.temp2m}°</td><td>${p.wind10m.direction}${p.wind10m.speed}</td><td>${p.prec_type==="none"?"-":p.prec_type}</td></tr>`;
+  }).join("");
+  $("timerTbl").innerHTML = `<thead><tr><th>日期</th><th>时间</th><th>☁云量</th><th>🔭透明度</th><th>👁视宁度</th><th>💧湿度</th><th>🌡温度</th><th>🌬风</th><th>降水</th></tr></thead><tbody>${rows}</tbody>`;
+}
+
+// ====== 光污染 ======
+function bortle(mpsas){
+  if(mpsas>=21.7) return ["Bortle 3","乡村星空",60];
+  if(mpsas>=20.49) return ["Bortle 4","乡村/郊区过渡",45];
+  if(mpsas>=19.5) return ["Bortle 5","郊区天空",30];
+  if(mpsas>=18.94) return ["Bortle 6","明亮郊区",20];
+  if(mpsas>=18.38) return ["Bortle 7","城郊",12];
+  if(mpsas>=17.8) return ["Bortle 8","城市",6];
+  return ["Bortle 9","市中心",2];
+}
+async function loadLP(){
+  const u = proxy(`https://nodeapi.knockdream.com/api/lightpollution/latest?lat=${state.lat}&lon=${state.lng}&key=${KEY}`);
+  const d = await getJSON(u);
+  const [b,t,pct] = bortle(d.brightness.mpsas);
+  const all = await getJSON(proxy(`https://nodeapi.knockdream.com/api/lightpollution/all?lat=${state.lat}&lon=${state.lng}&key=${KEY}`));
+  const years = all.measurements;
+  const trend = years.slice(-6).map(y=>{
+    const c = y.brightness.mpsas>=21.7?"#3ddc84":y.brightness.mpsas>=20.49?"#ffd54f":y.brightness.mpsas>=19.5?"#ffb020":"#ff5252";
+    return `<div class="y"><span>${y.year}</span><span class="mini"><i style="width:${clamp((y.brightness.mpsas-17)/6*100,0,100)}%;background:${c}"></i></span><span style="width:36px">${fmt(y.brightness.mpsas,1)}</span></div>`;
+  }).join("");
+  $("lpBox").innerHTML = `<div class="lp-grid">
+    <div class="lp-val"><b style="color:${scoreColor(pct*1.6)}">${b.replace("Bortle ","B")}</b><small>${b}</small></div>
+    <div class="lp-val"><b>${fmt(d.brightness.mpsas,2)}</b><small>MPSAS(星等/平方角秒)</small></div>
+    <div class="lp-val"><b>${fmt(d.brightness.ratio*100,0)}%</b><small>天空亮度比</small></div>
+  </div>
+  <div class="score-desc">${b} · ${pct}% 与理想暗空的差距 · ${d.dataVersion} · ${new Date(d.timestamp).toLocaleString("zh-CN")}</div>
+  <div class="lp-trend"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">历年变化(近6年):</div>${trend}</div>`;
+}
+
+// ====== 流星雨 ======
+function solarLon(date){
+  const jd = date.getTime()/86400000 + 2440587.5;
+  const n = jd - 2451545.0;
+  const L = (280.460 + 0.9856474*n) % 360;
+  const g = ((357.528 + 0.9856003*n) % 360) * Math.PI/180;
+  const lam = L + 1.915*Math.sin(g) + 0.020*Math.sin(2*g);
+  return ((lam%360)+360)%360;
+}
+async function loadMeteors(){
+  const data = await (await fetch("all_meteor.json")).json();
+  const now = new Date(); const lon = solarLon(now);
+  const active = data.filter(m=>{
+    let [a,b]=m.active; if(a>b) b+=360;
+    let L=lon; if(L<a) L+=360;
+    return L>=a && L<=b;
+  });
+  const hot = active.filter(m=>{ let [a,b]=m.active; if(a>b)b+=360; let L=lon; if(L<a)L+=360; return Math.abs((L-(a+b)/2))<3; });
+  $("meteors").innerHTML = active.length ? active.map(m=>{
+    const isHot = hot.includes(m);
+    return `<div class="meteor"><span>${isHot?"⭐":""} ${m.name_zh} <span class="tag ${isHot?"hot":""}">${isHot?"峰值中":"活跃"}</span></span><span style="font-size:10px;color:var(--dim)">${m.name_en} · ${m.velocity}km/s</span><span class="zhr">ZHR ${m.zhr_max}</span></div>`;
+  }).join("") : `<div class="loading">当前无活跃流星雨(太阳黄经 ${fmt(lon,1)}°)</div>`;
+  const all = [...data].sort((a,b)=>a.peak-b.peak).map(m=>{
+    const pct = Math.min(100, Math.max(0, (m.zhr_max/120)*100));
+    return `<div class="meteor"><span>${m.name_zh}<span style="font-size:10px;color:var(--dim)"> ${m.name_en}</span></span><span class="mini" style="flex:1;height:6px;background:#0a1120;border-radius:3px;margin-left:8px"><i style="display:block;height:100%;width:${pct}%;background:var(--warn);border-radius:3px"></i></span><span class="zhr">${m.zhr_max}</span></div>`;
+  }).join("");
+  $("meteorAll").innerHTML = all;
+}
+
+// ====== 天象 & 太阳活动 ======
+async function loadAstro(){
+  try{
+    const d = await getJSON(proxy("https://nodeapi.knockdream.com/api/astro/events?key=clearsky_demo_2026"));
+    const list = (d.data||[]).slice(0,8).map(e=>`<div class="meteor"><span>${e.event||""}</span><span style="font-size:10px;color:var(--dim)">${(e.date||"").replace("T"," ").slice(0,16)}</span></div>`).join("");
+    $("astroEvents").innerHTML = list || `<div class="loading">暂无近期事件</div>`;
+  }catch(e){ $("astroEvents").innerHTML = `<div class="err">天象接口暂不可用: ${e.message}</div>`; }
+}
+async function loadSolar(){
+  const jobs = [
+    ["Kp指数(3h)", proxy("https://nodeapi.knockdream.com/api/space/kp-index"), d=>d.length?d[d.length-1].kp:"-", "NOAA实测"],
+    ["太阳风速度", proxy("https://nodeapi.knockdream.com/api/solar-wind"), d=>d.length?fmt(d[d.length-1].speed,0)+" km/s":"-", "实时"],
+    ["极光功率(北)", proxy("https://nodeapi.knockdream.com/api/aurora-power"), d=>d.length?d[d.length-1].northPower+" GW":"-", "OVATION"],
+    ["行星际磁场Bz", proxy("https://nodeapi.knockdream.com/api/magnetic-field"), d=>d.length?fmt(d[d.length-1].bz_gsm,1)+" nT":"-", "实时"],
+  ];
+  let html="";
+  for(const [k,url,f,src] of jobs){
+    try{ const d=await getJSON(url); html+=`<div class="stat"><div class="k">${k}</div><div class="v">${f(d)}</div><div class="s">${src}</div></div>`; }
+    catch(e){ html+=`<div class="stat"><div class="k">${k}</div><div class="v" style="color:var(--bad)">-</div><div class="s">不可用</div></div>`; }
+  }
+  $("solarGrid").innerHTML = html;
+}
+
+// ====== 导航链接 ======
+function updateLinks(){
+  const {lat,lng}=state, n=encodeURIComponent(state.name);
+  $("linkAmap").href = `https://uri.amap.com/navigation?to=${lng},${lat},${n}&mode=car&coordinate=gaode&callnative=1`;
+  $("linkGoogle").href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  $("linkDarkmap").href = `https://www.darkmap.cn/?app=true&longitude=${lng}&latitude=${lat}`;
+  $("linkWindy").href = `https://www.windy.com/${lat}/${lng}?clouds,${lat},${lng},8`;
+}
+
+// ====== 主流程 ======
+async function loadAll(){
+  updateLinks(); recenter();
+  $("hours").innerHTML = `<div class="loading">加载中…</div>`;
+  $("models").innerHTML = ""; $("scoreBig").innerHTML = `<div class="loading">加载中…</div>`;
+  $("timerTbl").innerHTML = ""; $("timerLoad").textContent="加载中…";
+  $("lpBox").innerHTML = `<div class="loading">加载中…</div>`;
+  await Promise.allSettled([loadScore(), loadTimer(), loadLP(), loadMeteors(), loadAstro(), loadSolar()]);
+}
+renderChips(); initMap(); refreshBase(); loadAll();
+setInterval(()=>{ if(document.visibilityState==="visible") addCloud(); }, 600000);
+</script>
+</body>
+</html>
