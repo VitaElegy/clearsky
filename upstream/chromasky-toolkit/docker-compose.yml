@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    # 添加这个策略
+    pull_policy: never
+    image: chromasky-toolkit
+    container_name: chromasky-app
+    restart: unless-stopped
+    ports:
+      - "8002:8000"
+    volumes:
+      - chromasky-data:/app/data
+      - chromasky-outputs:/app/outputs
+      - ${TILES_HOST_PATH:-./chroma-sky-tiles}:/app/chroma-sky-tiles
+    env_file:
+      - .env
+
+volumes:
+  chromasky-data:
+  chromasky-outputs:
