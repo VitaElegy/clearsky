@@ -117,6 +117,10 @@
           <option value="gd">高德卫星影像</option>
           <option value="esri">ESRI 影像</option>
         </select>
+        <label style="font-size:12px"><input type="checkbox" id="imCloudCb" onchange="APP.toggleImCloud(this.checked)"> 风云4B云图</label><span id="imCloudNote" style="display:none;font-size:11px;color:var(--warn)">(全国标称投影近似, 仅宏观参考)</span>
+        <label style="font-size:12px"><input type="checkbox" id="imHeatCb" checked onchange="APP.toggleImHeat(this.checked)"> 指数热力</label>
+        <label style="font-size:12px"><input type="checkbox" id="imDotCb" checked onchange="APP.toggleImDots(this.checked)"> 网格点</label>
+      </div>
       <div id="imInfo" class="score-desc" style="margin-top:8px">加载中…</div>
       <div id="imMap" style="height:440px;border-radius:10px;margin-top:8px"></div>
       <div id="imLegend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--dim)"></div>

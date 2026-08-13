@@ -13,7 +13,8 @@ function initMap(){
   map = L.map("map",{zoomControl:true, attributionControl:false}).setView([APP.state.lat,APP.state.lng],11);
   map.createPane("cloud").style.zIndex = 450;
   refreshBase();
-  marker = L.marker([APP.state.lat,APP.state.lng],{draggable:true}).addTo(map);
+  const mi = L.icon({iconUrl:"vendor/marker-icon.png", shadowUrl:"vendor/marker-shadow.png", iconSize:[25,41], iconAnchor:[12,41], shadowSize:[41,41]});
+  marker = L.marker([APP.state.lat,APP.state.lng],{draggable:true, icon:mi}).addTo(map);
   marker.on("dragend",e=>{ const p=e.target.getLatLng(); APP.state.lat=+p.lat.toFixed(4); APP.state.lng=+p.lng.toFixed(4); APP.onLocChanged(); });
   map.on("click",e=>{ APP.state.lat=+e.latlng.lat.toFixed(4); APP.state.lng=+e.latlng.lng.toFixed(4); marker.setLatLng([APP.state.lat,APP.state.lng]); APP.onLocChanged(); });
 }
