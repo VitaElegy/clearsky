@@ -150,7 +150,7 @@ pip install -e ".[test]"
 
 ## URL 健康检查 (运行前探测连通性+延迟)
 ```bash
-# 全量检查 33 个数据源 (默认并发 12, 约 10s)
+# 全量检查 34 个数据源 (默认并发 12, 约 10s)
 clearsky check
 
 # 只查关键链路 (观星指数/光害/7Timer/风云4B) — 最快
@@ -163,7 +163,7 @@ clearsky check --strict
 
 # Python API
 from clearsky import check_all, check_url, get_urls
-rep = check_all()                          # 全部 33 端点
+rep = check_all()                          # 全部 34 端点
 rep = check_all(group="core")          # 只查核心
 print(rep.summary())                       # {total, ok, fail, critical_fail, elapsed_s, avg_total_ms}
 for r in rep.results:                      # 每端点: id/status/connect_ms/ttfb_ms/total_ms
@@ -182,7 +182,7 @@ python web/server.py --check-group core  # 只查核心分组
 顶部状态点实时反映关键服务是否正常; 每 15 分钟自动复查。`web/server.py` 使用 **ThreadingTCPServer 多线程**处理请求,
 全量健康检查(约 6-15s)期间静态页/天气/卫星等其他请求完全不受阻塞; 启动时顶部只查关键分组(core)快速点亮状态点。
 
-**URL 注册表**: `clearsky/urls.py` 维护 33 个端点 (6 组: core/nodeapi/weather/satellite/maps/misc),
+**URL 注册表**: `clearsky/urls.py` 维护 34 个端点 (6 组: core/nodeapi/weather/satellite/maps/misc),
 默认坐标=威远穹窿 (29.58,104.50), 可用 `build_urls(coords={...})` 换成任意观测地重建。
 检查指标: 连接(含 TLS) / TTFB / 总耗时, 自动跟随重定向, 只读响应前 2KB 避免下载大图。
 
@@ -216,7 +216,7 @@ explain("icon", 0.1043, 0.7866, 0.8711, 0.0)         # ScoreResult(score=89.1, .
 | `clearsky/__init__.py` | 包导出 (from clearsky import predict_score) |
 | `clearsky/algorithm.json` | **机器可读算法元数据** (系数/封顶/指标/引用, 程序可直接读取) |
 | `clearsky/cli.py` | 命令行入口 (info/predict/test/batch/check) + `clearsky` 入口点 |
-| `clearsky/urls.py` |  **URL 注册表** (33 端点/6 组/关键性标记/默认坐标) |
+| `clearsky/urls.py` |   **URL 注册表** (34 端点/6 组/关键性标记/默认坐标) |
 | `clearsky/healthcheck.py` | **URL 健康检查** (连通+连接/TTFB/总延迟, 并发, 报告) |
 | `clearsky/test_healthcheck.py` | healthcheck 离线单元测试 (本地 mock HTTP) |
 | `web/index.html` + `web/js/*` | 综合网页 (9 Tab: 观星/天气/光害/云图/极光/天象/卫星/健康/关于; 极光含 OVATION 极光卵图/日出日落辉光, 天象含流星无线电回波) |

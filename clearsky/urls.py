@@ -84,6 +84,9 @@ def build_urls(coords: Optional[dict] = None) -> list:
         u("nodeapi_meteor_radio", "流星无线电回波图", "nodeapi",
           "https://nodeapi.knockdream.com/skydata/meteor_radio_latest.png",
           critical=False, headers=jh, note="全球流星无线电台实时回波 PNG"),
+        u("nodeapi_apod", "NASA 每日天文图 (APOD)", "nodeapi",
+          "https://nodeapi.knockdream.com/api/apod",
+          critical=False, headers=jh, note="含中文标题/说明, 图片走阿里云 OSS"),
 
         # ---------- nodeapi 数据网关 ----------
         u("nodeapi_lightpollution", "光污染等级 (DarkMap 2025)", "nodeapi",

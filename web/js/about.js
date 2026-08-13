@@ -69,3 +69,30 @@ async function loadAbout(){
 }
 APP.updateLinks = updateLinks;
 APP.loadAbout = loadAbout;
+
+
+// ====== NASA 每日天文图 (nodeapi /api/apod, 含中文标题/说明) ======
+async function loadApod(){
+  const box = $("apodBox");
+  box.innerHTML = `<div class="loading">加载中…</div>`;
+  try{
+    const d = await getJSON(proxy("https://nodeapi.knockdream.com/api/apod"));
+    const it = (d.data||[])[0];
+    if(!it) throw new Error("无数据");
+    const host = it.ossHostname || "https://astronomy-service.oss-cn-shanghai.aliyuncs.com";
+    const imgUrl = host + "/" + (it.detailOssUrl||"");
+    const img = new Image();
+    img.style.cssText = "width:100%;max-width:760px;border-radius:8px;background:#0a1120";
+    img.alt = it.title_CN || it.title || "APOD";
+    await new Promise((ok,no)=>{ img.onload=ok; img.onerror=()=>no(new Error("图片加载失败")); img.src=imgUrl; });
+    box.innerHTML = "";
+    box.appendChild(img);
+    box.insertAdjacentHTML("beforeend", `
+      <div style="margin-top:8px"><b>${esc(it.title_CN||it.title||"")}</b> <span style="font-size:10px;color:var(--dim)">${esc(it.date||"")} · © ${esc(it.copyright||"NASA")}</span></div>
+      <div style="font-size:12px;color:var(--dim);margin-top:6px">${esc((it.explanation_CN||it.explanation||"").slice(0,420))}${((it.explanation_CN||it.explanation||"").length>420)?"…":""}</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:4px"><a href="${esc(host+"/"+(it.originalOssUrl||""))}" target="_blank" style="color:var(--blue)">查看原图</a></div>`);
+  }catch(e){
+    box.innerHTML = `<div class="err">每日天文图加载失败: ${esc(e.message)}</div>`;
+  }
+}
+APP.loadApod = loadApod;
