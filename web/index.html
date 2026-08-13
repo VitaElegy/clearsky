@@ -21,6 +21,7 @@
 
 <nav class="tabs" id="tabs">
   <button class="tab on" data-tab="score">🌠 观星</button>
+  <button class="tab" data-tab="indexmap">🗺️ 指数地图</button>
   <button class="tab" data-tab="weather">☁️ 天气</button>
   <button class="tab" data-tab="light">🌃 光害</button>
   <button class="tab" data-tab="cloud">🛰️ 云图</button>
@@ -79,6 +80,40 @@
         公式: ICON = 89.673 − 88.057·云量 + 5.290·透明度 + 5.111·视宁度 − 8.905·结露风险
         <br>IFS = 90.042 − 87.849·云量 + 5.126·透明度 + 4.666·视宁度 − 32.640·结露风险
       </div>
+    </div>
+  </section>
+
+  <!-- ========== 观星指数地图 ========== -->
+  <section class="panel" id="panel-indexmap">
+    <div class="card">
+      <h2><span class="dot"></span>观星指数地图 <span class="tag-green">区域扫描</span></h2>
+      <div class="loc-row" style="flex-wrap:wrap;gap:6px">
+        <select id="imModel" onchange="APP.loadIndexMap(true)">
+          <option value="icon">ICON 模型</option>
+          <option value="ifs">IFS 模型</option>
+        </select>
+        <select id="imGrid" onchange="APP.loadIndexMap(true)">
+          <option value="3">3×3 点</option>
+          <option value="5" selected>5×5 点</option>
+          <option value="7">7×7 点</option>
+        </select>
+        <select id="imSpan" onchange="APP.loadIndexMap(true)">
+          <option value="0.4">跨度 0.4° (~44km)</option>
+          <option value="0.8" selected>跨度 0.8° (~88km)</option>
+          <option value="1.6">跨度 1.6° (~177km)</option>
+        </select>
+        <select id="imOffset" onchange="APP.loadIndexMap(true)">
+          <option value="1" selected>今晚</option>
+          <option value="2">明晚</option>
+          <option value="3">后天</option>
+          <option value="0">昨晚(对照)</option>
+        </select>
+        <button onclick="APP.loadIndexMap(true)">刷新</button>
+      </div>
+      <div id="imInfo" class="score-desc" style="margin-top:8px">加载中…</div>
+      <div id="imMap" style="height:440px;border-radius:10px;margin-top:8px"></div>
+      <div id="imLegend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--dim)"></div>
+      <div id="imPick" style="margin-top:8px"></div>
     </div>
   </section>
 
@@ -265,6 +300,7 @@
 <script src="js/sat.js"></script>
 <script src="js/health.js"></script>
 <script src="js/about.js"></script>
+<script src="js/indexmap.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

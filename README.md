@@ -20,6 +20,7 @@ python3 server.py 8890
 |---|---|---|
 | 观星指数 5晚逐小时 | ClearSky stargazing.twtapp.com (ICON模型) | ✅ 直连 |
 | 多模型对比 ICON vs IFS | ClearSky接口 | ✅ 直连 |
+| **观星指数地图 (区域网格扫描)** | 后端 `/api/scan` 并发扫 3×3~7×7 网格点, Leaflet 地图着色选点 | ✅ 后端聚合 |
 | 晴天钟 7天对照 | 7Timer astro.php (ClearSky上游) | ✅ 代理 |
 | 光污染 Bortle/MPSAS/历年 | ClearSky nodeapi (DarkMap 2025) | ✅ 代理 |
 | 卫星云图实况 | 国家卫星气象中心 风云4B | ✅ 直连 |
@@ -219,9 +220,9 @@ explain("icon", 0.1043, 0.7866, 0.8711, 0.0)         # ScoreResult(score=89.1, .
 | `clearsky/urls.py` |   **URL 注册表** (34 端点/6 组/关键性标记/默认坐标) |
 | `clearsky/healthcheck.py` | **URL 健康检查** (连通+连接/TTFB/总延迟, 并发, 报告) |
 | `clearsky/test_healthcheck.py` | healthcheck 离线单元测试 (本地 mock HTTP) |
-| `web/index.html` + `web/js/*` | 综合网页 (9 Tab: 观星/天气/光害/云图/极光/天象/卫星/健康/关于; 极光含 OVATION 极光卵图/日出日落辉光, 天象含流星无线电回波) |
+| `web/index.html` + `web/js/*` | 综合网页 (10 Tab: 观星/**指数地图**/天气/光害/云图/极光/天象/卫星/健康/关于; 指数地图=区域网格扫描地图选点, 极光含 OVATION 极光卵图/日出日落辉光, 天象含流星无线电回波) |
 | `web/css/app.css` | 网页深色主题样式 |
-| `web/server.py` | 本地服务: 启动前健康检查 + 静态页 + `/api/*` + `/proxy` 代理 (ThreadingTCPServer 多线程, 健康检查不阻塞其他请求) |
+| `web/server.py` | 本地服务: 启动前健康检查 + 静态页 + `/api/*` (`/api/scan` 区域网格观星指数扫描, 8线程并发+重试+10分钟缓存) + `/proxy` 代理 (ThreadingTCPServer 多线程, 健康检查不阻塞其他请求) |
 | `clearsky/test_scoring.py` | 复现测试 (20 次地点分组交叉验证) |
 | `clearsky/data/sample_dataset.csv` | 2016 行真实 API 采样 (训练/验证数据) |
 | `clearsky/data/nightly_probe.json` | 整晚分聚合探针 |

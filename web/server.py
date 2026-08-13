@@ -4,6 +4,8 @@
 #   端口默认 8890; 启动前自动做 URL 健康检查(延迟报告); --no-check 跳过; --check-exit 关键失败中止
 # 手机同网访问: http://<电脑IP>:8890
 import http.server, urllib.request, urllib.parse, socketserver, os, sys, json, argparse
+import threading, time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
@@ -30,6 +32,85 @@ def run_healthcheck(group="all", exit_on_critical=False):
         print(f"[健康检查] {len(rep.critical_failures)} 个关键服务异常，--check-exit 已设置，中止启动")
         return False
     return True
+
+SCAN_CACHE = {}
+SCAN_CACHE_LOCK = threading.Lock()
+SCAN_TTL = 600          # 缓存 10 分钟
+SCAN_MAX_CACHE = 20
+SCAN_WORKERS = 8        # 网格点并发数 (避免打爆上游)
+
+
+def scan_stargazing(lat, lng, span=0.8, grid=5, model="icon", offset=1):
+    """以 (lat,lng) 为中心扫描 span x span 度、grid x grid 个网格点的观星指数。
+
+    每点调用观星指数 nightly/point/range/all (该接口不带 CORS 头,
+    由后端转发, 浏览器只访问 /api/scan), days[0]=昨晚, days[1]=今晚, days[2+]=明晚起。
+    主分数取 offset 晚 (默认 1=今晚),
+    同时保留全部夜晚供前端展示。带内存缓存 (10 分钟) 防止重复扫描打爆上游。
+    """
+    span = max(0.1, min(3.0, float(span)))
+    grid = max(2, min(9, int(grid)))
+    offset = max(0, min(6, int(offset)))
+    model = model if model in ("icon", "ifs") else "icon"
+
+    key = (round(lat, 4), round(lng, 4), round(span, 2), grid, model, offset)
+    with SCAN_CACHE_LOCK:
+        hit = SCAN_CACHE.get(key)
+        if hit and time.time() - hit[0] < SCAN_TTL:
+            return hit[1]
+
+    lats = [lat - span / 2 + span * i / (grid - 1) for i in range(grid)]
+    lngs = [lng - span / 2 + span * j / (grid - 1) for j in range(grid)]
+    coords = [(round(a, 4), round(b, 4)) for a in lats for b in lngs]
+
+    def fetch(c):
+        la, ln = c
+        url = (f"https://stargazing.twtapp.com/api/v1/stargazing/nightly/point/range/all"
+               f"?lat={la}&lng={ln}&key=clearsky_demo_2026")
+        d = None
+        for attempt in range(3):   # 失败重试 2 次 (高并发时偶发超时)
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
+                with urllib.request.urlopen(req, timeout=12) as r:
+                    d = json.loads(r.read().decode("utf-8"))
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+        nights = []
+        for dd in ((d.get("models") or {}).get(model, {}).get("days") or []):
+            nights.append({"date": dd.get("date"), "score": dd.get("score")})
+        cur = nights[offset] if len(nights) > offset else (nights[0] if nights else {})
+        return {"lat": la, "lng": ln, "nights": nights,
+                "score": cur.get("score"), "date": cur.get("date")}
+
+    results, failures = [], 0
+    with ThreadPoolExecutor(max_workers=SCAN_WORKERS) as ex:
+        futs = {ex.submit(fetch, c): c for c in coords}
+        for fu in as_completed(futs):
+            try:
+                results.append(fu.result())
+            except Exception:
+                la, ln = futs[fu]
+                failures += 1
+                results.append({"lat": la, "lng": ln, "nights": [], "score": None, "date": None})
+
+    results.sort(key=lambda p: (p["lat"], p["lng"]))
+    out = {
+        "center": {"lat": round(lat, 4), "lng": round(lng, 4)},
+        "span": span, "grid": grid, "model": model, "offset": offset,
+        "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "total": len(results), "failures": failures,
+        "points": results,
+    }
+    with SCAN_CACHE_LOCK:
+        if len(SCAN_CACHE) >= SCAN_MAX_CACHE:
+            # 淘汰最旧
+            for k in sorted(SCAN_CACHE, key=lambda k: SCAN_CACHE[k][0])[:len(SCAN_CACHE) - SCAN_MAX_CACHE + 1]:
+                SCAN_CACHE.pop(k, None)
+        SCAN_CACHE[key] = (time.time(), out)
+    return out
+
 
 def clearsky_api(path, qs):
     """对接 clearsky 库: /api/info | /api/predict | /api/health。返回 (data, ctype)。"""
@@ -65,6 +146,34 @@ def clearsky_api(path, qs):
                 "inputs": r.inputs,
                 "formula": "ICON: 89.673-88.057*c+5.290*t+5.111*s-8.905*d | IFS: 90.042-87.849*c+5.126*t+4.666*s-32.640*d",
             }, "application/json"
+        except Exception as e:
+            return {"error": str(e)}, "application/json"
+    if path == "/api/scan":
+        def num(k, default=None, lo=None, hi=None):
+            v = qs.get(k, [default])[0]
+            if v is None:
+                return default
+            try:
+                f = float(v)
+            except (TypeError, ValueError):
+                raise ValueError(f"参数 {k} 不是数字: {v!r}")
+            if lo is not None:
+                f = max(lo, f)
+            if hi is not None:
+                f = min(hi, f)
+            return f
+        try:
+            lat = num("lat", None)
+            lng = num("lng", None)
+            if lat is None or lng is None:
+                raise ValueError("缺少 lat/lng")
+            return scan_stargazing(
+                lat=lat, lng=lng,
+                span=num("span", 0.8, 0.1, 3.0),
+                grid=int(num("grid", 5, 2, 9)),
+                model=qs.get("model", ["icon"])[0],
+                offset=int(num("offset", 1, 0, 6)),
+            ), "application/json"
         except Exception as e:
             return {"error": str(e)}, "application/json"
     if path == "/api/health":

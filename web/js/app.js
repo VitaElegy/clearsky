@@ -33,6 +33,7 @@ function switchTab(name){
   APP.loaded[name] = true;
   const L = {
     score: ()=>{ APP.loadScore(); },
+    indexmap: ()=>{ APP.initIndexMap(); APP.loadIndexMap(); },
     weather: ()=>{ APP.loadTimer(); APP.loadOpenMeteo(); APP.loadMetno(); APP.load15days(); APP.loadAQI(); },
     light: ()=>{ APP.loadLP(); APP.loadElevation(); },
     cloud: ()=>{ APP.initMap(); APP.recenter(); },
@@ -53,6 +54,7 @@ async function loadAll(){
   // 已加载过的 tab 重新拉数据
   const reload = {
     score: ()=>APP.loadScore(),
+    indexmap: ()=>APP.loadIndexMap(),
     weather: ()=>{ APP.loadTimer(); APP.loadOpenMeteo(); APP.loadMetno(); APP.load15days(); APP.loadAQI(); },
     light: ()=>{ APP.loadLP(); APP.loadElevation(); },
     sun: ()=>{ APP.loadSolar(); APP.loadAuroraForecast(); APP.loadOvation(); APP.loadGlow(); },
