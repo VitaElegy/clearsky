@@ -1,6 +1,7 @@
-// ====== 观星指数地图 (真实底图 + 网格扫描 + 热力插值 + 风云4B云图叠加) ======
+// ====== 观星指数地图 (真实底图 + 网格扫描 + 双线性热力/等值线 + 风云4B云图叠加) ======
 let imap=null, imBaseLayer=null, imCloudLayer=null, imHeat=null, imMarkers=[], imSelected=null, imData=null, imSkipNextReload=false;
-let imBaseKey="cd", imShowCloud=false, imShowHeat=true, imShowDots=true;
+let imDotRenderer=null, imSelMarker=null;
+let imBaseKey="cd", imShowCloud=false, imShowHeat=true, imShowDots=true, imShowContour=true;
 
 // 真实底图源 (全部实测可用, 腾讯 rt.map.gtimg.com 返回纯色占位图已弃用)
 const IM_BASE = {
@@ -14,10 +15,78 @@ const IM_BASE = {
         attr:'Tiles &copy; Esri'},
 };
 
-// 指数热力连续场: 反距离加权(IDW)插值绘制到低分辨率离屏 canvas 再拉伸
+// ---- 规则网格识别: /api/scan 返回的 lat/lng 等差网格, 双线性插值的前提 ----
+function buildRegularGrid(pts){
+  const r6 = v => Math.round(v*1e6)/1e6;
+  const lats = [...new Set(pts.map(p=>r6(p.lat)))].sort((a,b)=>a-b);
+  const lngs = [...new Set(pts.map(p=>r6(p.lng)))].sort((a,b)=>a-b);
+  if(lats.length*lngs.length !== pts.length || lats.length<2 || lngs.length<2) return null;
+  const data = lats.map(()=>new Array(lngs.length).fill(null));
+  for(const p of pts){
+    const i = lats.indexOf(r6(p.lat)), j = lngs.indexOf(r6(p.lng));
+    if(i>=0 && j>=0) data[i][j] = p.score;
+  }
+  return {lat0:lats[0], dLat:(lats[lats.length-1]-lats[0])/(lats.length-1), nLat:lats.length,
+          lng0:lngs[0], dLng:(lngs[lngs.length-1]-lngs[0])/(lngs.length-1), nLng:lngs.length, data};
+}
+
+// 盒式模糊(半径1), 抹平双线性色带边缘, 让色面更柔
+function boxBlur(f, w, h){
+  const src = f, out = new Float32Array(w*h);
+  for(let y=0;y<h;y++){
+    const ym = y>0?y-1:y, yp = y<h-1?y+1:y;
+    for(let x=0;x<w;x++){
+      const xm = x>0?x-1:x, xp = x<w-1?x+1:x;
+      out[y*w+x] = (src[ym*w+xm]+src[ym*w+x]+src[ym*w+xp]+
+                    src[y*w+xm]+src[y*w+x]+src[y*w+xp]+
+                    src[yp*w+xm]+src[yp*w+x]+src[yp*w+xp])/9;
+    }
+  }
+  return out;
+}
+
+// 等值线: Marching squares, 阈值处线性插值取点, 按 case 连段
+// 边编号: 0=上, 1=右, 2=下, 3=左; 位: 8=左上,4=右上,2=右下,1=左下
+const MS_SEG = {
+  1:[[3,2]], 2:[[2,1]], 3:[[3,1]], 4:[[1,0]], 6:[[0,2]], 7:[[0,3]],
+  8:[[0,3]], 9:[[0,2]], 11:[[0,1]], 12:[[1,3]], 13:[[1,2]], 14:[[3,2]],
+  5:[[0,3],[1,2]], 10:[[0,1],[2,3]]
+};
+function marchingSegs(f, w, h, t){
+  const segs = [];
+  const ptsAt = (x,y)=>[x,y];
+  const interp = (a, fa, b, fb) => {
+    const d = fb-fa; const k = d===0 ? 0.5 : (t-fa)/d;
+    return [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k];
+  };
+  for(let y=0;y<h-1;y++){
+    for(let x=0;x<w-1;x++){
+      const f00=f[y*w+x], f10=f[y*w+x+1], f11=f[(y+1)*w+x+1], f01=f[(y+1)*w+x];
+      let idx = (f00>=t?8:0)|(f10>=t?4:0)|(f11>=t?2:0)|(f01>=t?1:0);
+      if(idx===0 || idx===15) continue;
+      if(idx===5 || idx===10){
+        idx = (f00+f10+f11+f01)/4 >= t ? 10 : 5;   // 鞍点按中心值消歧
+      }
+      const E = [
+        interp([x,y], f00, [x+1,y], f10),          // 0 上
+        interp([x+1,y], f10, [x+1,y+1], f11),      // 1 右
+        interp([x+1,y+1], f11, [x,y+1], f01),      // 2 下
+        interp([x,y+1], f01, [x,y], f00),          // 3 左
+      ];
+      for(const [a,b] of (MS_SEG[idx]||[])) segs.push([E[a], E[b]]);
+    }
+  }
+  return segs;
+}
+
+// 指数热力连续场: 规则网格用双线性插值(Bilinear, 气象图标准做法),
+// 非规则/缺测回退 IDW; 可选叠加等值线 (Marching squares)
 const HeatLayer = L.Layer.extend({
-  options:{opacity:0.5, res:200, radius:1.4},
-  initialize(pts){ this._pts = pts||[]; },
+  options:{opacity:0.46, res:300, contours:true, contourValues:[20,40,60,80]},
+  initialize(pts, opts){
+    L.setOptions(this, opts||{});
+    this._pts = pts||[];
+  },
   onAdd(map){
     this._map = map;
     this._c = L.DomUtil.create("canvas","im-heat");
@@ -31,6 +100,7 @@ const HeatLayer = L.Layer.extend({
     if(this._c) L.DomUtil.remove(this._c);
   },
   setData(pts){ this._pts = pts||[]; if(this._c) this._reset(); },
+  setContours(on){ this.options.contours = !!on; if(this._c) this._draw(); },
   _reset(){
     const s = this._map.getSize();
     this._c.width = s.x; this._c.height = s.y;
@@ -43,47 +113,112 @@ const HeatLayer = L.Layer.extend({
     ctx.clearRect(0,0,this._c.width,this._c.height);
     const pts = (this._pts||[]).filter(p=>p.score!=null);
     if(!pts.length) return;
-    const R = this.options.res || 200;
+    const R = this.options.res || 240;
     const w = this._c.width, h = this._c.height;
     if(!isFinite(w) || !isFinite(h) || w<=0 || h<=0) return;
     const ow = Math.max(2, Math.min(R|0, w)), oh = Math.max(2, Math.round(ow*h/w));
     const off = document.createElement("canvas"); off.width=ow; off.height=oh;
     const octx = off.getContext("2d");
     const img = octx.createImageData(ow,oh);
+    const field = new Float32Array(ow*oh);
     const bounds = this._map.getBounds();
-    // 网格点转到容器像素(当前视图)
-    const pp = pts.map(p=>{
-      const c = this._map.latLngToContainerPoint([p.lat,p.lng]);
-      return {x:c.x/w*ow, y:c.y/h*oh, v:p.score};
-    });
     const cosLat = Math.cos(bounds.getCenter().lat*Math.PI/180);
-    // 自适应影响半径: 约 2.2 倍网格间距, 保证点与点之间连成连续色面
-    const n = Math.max(2, Math.sqrt(pts.length));
-    const spacing = Math.max(4, ow/(n-1));
-    const R2 = Math.pow(spacing*2.2, 2);
-    const eps = 1e-6;
+    const grid = buildRegularGrid(pts);
+    let imMask = null;   // 双线性分支的边缘羽化 mask
+    let used = 0;
+
+    if(grid){
+      // ---- 双线性插值 (规则网格, O(1)/像素) ----
+      const latMin = bounds.getSouth(), latMax = bounds.getNorth();
+      const lngMin = bounds.getWest(), lngMax = bounds.getEast();
+      const nLat = grid.nLat, nLng = grid.nLng, dLat = grid.dLat, dLng = grid.dLng;
+      const {lat0, lng0, data} = grid;
+      imMask = new Float32Array(ow*oh);   // 边缘羽化: 数据边界外淡出
+      for(let y=0;y<oh;y++){
+        const lat = latMax - (y+0.5)/oh*(latMax-latMin);
+        const fi = (lat-lat0)/dLat;
+        for(let x=0;x<ow;x++){
+          const lng = lngMin + (x+0.5)/ow*(lngMax-lngMin);
+          const fj = (lng-lng0)/dLng;
+          const i0 = Math.floor(fi), j0 = Math.floor(fj);
+          const ti = fi-i0, tj = fj-j0;
+          if(i0<-1 || i0>nLat-1 || j0<-1 || j0>nLng-1) continue;
+          const ia = Math.max(0, Math.min(nLat-2, i0)), ja = Math.max(0, Math.min(nLng-2, j0));
+          const ib = ia+1, jb = ja+1;
+          const v00=data[ia][ja], v10=data[ib][ja], v01=data[ia][jb], v11=data[ib][jb];
+          if(v00==null || v10==null || v01==null || v11==null) continue;
+          // 局部归一化权重, 越界时向格内收缩
+          const u = i0<0 ? 1 : i0>nLat-2 ? 0 : ti;
+          const v = j0<0 ? 1 : j0>nLng-2 ? 0 : tj;
+          field[y*ow+x] = v00*(1-u)*(1-v) + v10*u*(1-v) + v01*(1-u)*v + v11*u*v;
+          // 到数据区域边缘的距离 (网格坐标), 0.6 格内平滑羽化
+          const d = Math.min(fi+0.5, nLat-0.5-fi, fj+0.5, nLng-0.5-fj);
+          const a = Math.max(0, Math.min(1, d/0.6));
+          imMask[y*ow+x] = a*a*(3-2*a);   // smoothstep
+          used++;
+        }
+      }
+    } else {
+      // ---- IDW 回退 (非规则/缺测) ----
+      const pp = pts.map(p=>{
+        const c = this._map.latLngToContainerPoint([p.lat,p.lng]);
+        return {x:c.x/w*ow, y:c.y/h*oh, v:p.score};
+      });
+      const n = Math.max(2, Math.sqrt(pts.length));
+      const spacing = Math.max(4, ow/(n-1));
+      const R2 = Math.pow(spacing*2.2, 2);
+      const eps = 1e-6;
+      for(let y=0;y<oh;y++){
+        for(let x=0;x<ow;x++){
+          let sw=0, sv=0;
+          for(const p of pp){
+            const dx=(p.x-x)*cosLat, dy=p.y-y;
+            const d2=dx*dx+dy*dy;
+            if(d2<R2){
+              const t = 1 - Math.sqrt(d2)/Math.sqrt(R2);
+              const wgt = t*t;
+              sw+=wgt; sv+=wgt*p.v;
+            }
+          }
+          if(sw>0){ field[y*ow+x] = sv/sw; used++; }
+        }
+      }
+    }
+
+    if(!used) return;
+    const smooth = boxBlur(field, ow, oh);   // 平滑色带, 消除格线感
+    let mask = null;
+    if(grid) mask = boxBlur(imMask, ow, oh);
     for(let y=0;y<oh;y++){
       for(let x=0;x<ow;x++){
-        let sw=0, sv=0;
-        for(const p of pp){
-          const dx=(p.x-x)*cosLat, dy=p.y-y;
-          const d2=dx*dx+dy*dy;
-          if(d2<R2){
-            // 线性衰减权重: w=(1-d/R)^2, 比 1/d2 更平滑, 减少牛眼圈纹
-            const t = 1 - Math.sqrt(d2)/Math.sqrt(R2);
-            const wgt = t*t;
-            sw+=wgt; sv+=wgt*p.v;
-          }
-        }
-        const v = sw>0 ? sv/sw : 0;
-        const col = heatColor(v);
+        const v = smooth[y*ow+x];
         const i=(y*ow+x)*4;
-        img.data[i]=col[0]; img.data[i+1]=col[1]; img.data[i+2]=col[2];
-        img.data[i+3]= sw>0 ? 255 : 0;
+        if(v>0 && isFinite(v)){
+          const col = heatColor(v);
+          const a = mask ? mask[y*ow+x] : 1;
+          img.data[i]=col[0]; img.data[i+1]=col[1]; img.data[i+2]=col[2]; img.data[i+3]=Math.round(a*255);
+        } else { img.data[i+3]=0; }
       }
     }
     octx.putImageData(img,0,0);
     ctx.drawImage(off,0,0,w,h);
+
+    // 等值线叠加 (白色半透明, 气象图风格)
+    if(this.options.contours && grid){
+      ctx.lineJoin = "round"; ctx.lineCap = "round";
+      for(const t of (this.options.contourValues||[])){
+        const segs = marchingSegs(smooth, ow, oh, t);
+        if(!segs.length) continue;
+        ctx.beginPath();
+        for(const [a,b] of segs){
+          ctx.moveTo(a[0]/ow*w, a[1]/oh*h);
+          ctx.lineTo(b[0]/ow*w, b[1]/oh*h);
+        }
+        // 深色打底 + 白色主线: 亮色/暗色底图上都清晰 (气象图惯例)
+        ctx.strokeStyle = "rgba(10,17,32,0.4)"; ctx.lineWidth = 2.6; ctx.stroke();
+        ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1.1; ctx.stroke();
+      }
+    }
   }
 });
 
@@ -106,8 +241,11 @@ function initIndexMap(){
   imap = L.map("imMap", {zoomControl:true, attributionControl:true}).setView([APP.state.lat,APP.state.lng], 9);
   imap.createPane("cloud").style.zIndex = 460;
   imap.createPane("heat").style.zIndex = 430;
+  imap.createPane("imdots").style.zIndex = 500;   // 采样细点
+  imap.createPane("impick").style.zIndex = 520;   // 选中高亮环
   imScale = L.control.scale({imperial:false, position:"bottomleft"}).addTo(imap);
-  imap.on("click", ()=>{ if(imSelected){ imSelected=null; renderImPick(); } });
+  imDotRenderer = L.canvas({tolerance:12, pane:"imdots"}).addTo(imap);  // 细点也容易点中
+  imap.on("click", ()=>{ if(imSelected){ imSelected=null; drawImSelection(); renderImPick(); } });
   applyImBase();
 }
 
@@ -144,6 +282,11 @@ function toggleImHeat(on){
   }
 }
 
+function toggleImContour(on){
+  imShowContour = on;
+  if(imHeat) imHeat.setContours(on);
+}
+
 function toggleImDots(on){
   imShowDots = on;
   if(!imap) return;
@@ -165,7 +308,7 @@ async function loadIndexMap(force){
     drawImMarkers(d);
     // 热力层
     if(imHeat){ imap.removeLayer(imHeat); imHeat=null; }
-    imHeat = new HeatLayer(d.points);
+    imHeat = new HeatLayer(d.points, {contours: imShowContour});
     if(imShowHeat) imHeat.addTo(imap);
     if(imShowCloud) addImCloud();
     // 摘要
@@ -177,10 +320,12 @@ async function loadIndexMap(force){
       `<b style="color:var(--ok)">${d.total} 点扫描完成</b> · 有效 ${ok.length} · 失败 ${d.failures} · ${dateTxt} · 模型 ${d.model.toUpperCase()} · 生成 ${esc(d.generated_at)}` +
       (best?`<br>⭐ 最佳: ${fmt(best.lat,4)},${fmt(best.lng,4)} → <b style="color:${scoreColor(best.score)}">${fmt(best.score,0)}</b> ${scoreTxt(best.score)}（点击地图点可设为观测地）`:"") +
       (worst?`<br>⚠️ 最差: ${fmt(worst.lat,4)},${fmt(worst.lng,4)} → <b style="color:${scoreColor(worst.score)}">${fmt(worst.score,0)}</b>`:"");
-    // 图例
-    const lg = [["≥80 极佳","#00e5ff"],["60-79 良好","#3ddc84"],["40-59 一般","#ffd54f"],["20-39 较差","#ffb020"],["<20 极差","#ff5252"],["无数据","#555"]];
-    $("imLegend").innerHTML = lg.map(([k,c])=>`<span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};margin-right:3px"></i>${k}</span>`).join("") +
-      `<span style="color:var(--dim)">· 色面=热力插值(IDW) · 圆点=实际网格采样</span>`;
+    // 图例: 连续渐变条 + 分档
+    $("imLegend").innerHTML =
+      `<span style="display:inline-flex;align-items:center;gap:5px"><i style="display:inline-block;width:110px;height:8px;border-radius:4px;background:linear-gradient(90deg,#ff5252,#ffb020,#ffd54f,#3ddc84,#00e5ff)"></i><b>0→100</b></span>` +
+      [["≥80 极佳","#00e5ff"],["60-79 良好","#3ddc84"],["40-59 一般","#ffd54f"],["20-39 较差","#ffb020"],["<20 极差","#ff5252"]]
+        .map(([k,c])=>`<span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};margin-right:3px"></i>${k}</span>`).join("") +
+      `<span style="color:var(--dim)">· 色面=双线性插值(Bilinear) · 细点=采样点 · 白线=等值线(20/40/60/80)</span>`;
     // 视野贴合网格
     if(ok.length){
       const b = L.latLngBounds(ok.map(p=>[p.lat,p.lng]));
@@ -197,38 +342,42 @@ function drawImMarkers(d){
   imMarkers = [];
   const prev = imSelected;
   imSelected = null;
-  const r = d.grid===3 ? 13 : d.grid===5 ? 11 : 9;
+  // 采样点改细点: 只做定位/交互, 视觉交给热力色面 (大圆点方案已废弃)
+  const r = d.grid===3 ? 4.5 : d.grid===5 ? 4 : 3.5;
   for(const p of d.points){
     const c = imColor(p.score);
     const m = L.circleMarker([p.lat,p.lng], {
-      radius:r, color:"#0a1120", weight:1, fillColor:c, fillOpacity:0.85, bubblingMouseEvents:false,
+      radius:r, color:"rgba(255,255,255,0.95)", weight:1.2, fillColor:c, fillOpacity:0.95,
+      renderer:imDotRenderer, bubblingMouseEvents:false,
     });
     const nights = (p.nights||[]).map(n=>`${String(n.date).slice(5)}: ${n.score==null?"-":fmt(n.score,0)}`).join(" / ");
     m.bindTooltip(`<b>${p.score==null?"无数据":fmt(p.score,0)}</b> ${scoreTxt(p.score)}<br>${fmt(p.lat,4)}, ${fmt(p.lng,4)}<br>${esc(nights)}`, {direction:"top", className:"im-tip"});
+    m.on("mouseover", ()=>m.setStyle({fillOpacity:1, weight:2}));
+    m.on("mouseout", ()=>m.setStyle({fillOpacity:0.95, weight:1.2}));
     m.on("click", ()=>{ pickImPoint(p); });
     imMarkers.push(m);
     if(imShowDots) m.addTo(imap);
   }
   if(prev){
     const np = d.points.find(x=>Math.abs(x.lat-prev.lat)<1e-6 && Math.abs(x.lng-prev.lng)<1e-6) || null;
-    if(np){
-      imSelected = np;
-      const ll = [np.lat, np.lng];
-      imMarkers.forEach(m=>{
-        const c = m.getLatLng();
-        m.setStyle({color: Math.abs(c.lat-ll[0])<1e-6 && Math.abs(c.lng-ll[1])<1e-6 ? "#ffffff" : "#0a1120", weight: Math.abs(c.lat-ll[0])<1e-6 && Math.abs(c.lng-ll[1])<1e-6 ? 3 : 1});
-      });
-    }
+    if(np) imSelected = np;
   }
+  drawImSelection();
+}
+
+function drawImSelection(){
+  if(imSelMarker){ imap.removeLayer(imSelMarker); imSelMarker=null; }
+  if(!imSelected) return;
+  const p = imSelected;
+  imSelMarker = L.circleMarker([p.lat,p.lng], {
+    radius:10, color:"#ffffff", weight:2.5, fillColor:imColor(p.score), fillOpacity:0.35,
+    dashArray:"4 4", pane:"impick", bubblingMouseEvents:false,
+  }).addTo(imap);
 }
 
 function pickImPoint(p){
   imSelected = p;
-  imMarkers.forEach(m=>{
-    const ll = m.getLatLng();
-    const sel = Math.abs(ll.lat-p.lat)<1e-6 && Math.abs(ll.lng-p.lng)<1e-6;
-    m.setStyle({color: sel ? "#ffffff" : "#0a1120", weight: sel ? 3 : 1});
-  });
+  drawImSelection();
   imSkipNextReload = true;
   APP.state.lat = p.lat; APP.state.lng = p.lng;
   if(APP.onLocChanged) APP.onLocChanged();
@@ -263,4 +412,5 @@ APP.loadIndexMap = loadIndexMap;
 APP.setImBase = setImBase;
 APP.toggleImCloud = toggleImCloud;
 APP.toggleImHeat = toggleImHeat;
+APP.toggleImContour = toggleImContour;
 APP.toggleImDots = toggleImDots;
