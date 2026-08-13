@@ -1,16 +1,23 @@
-// ====== 观星指数地图 (区域网格扫描 /api/scan) ======
-let imap=null, imBaseLayer=null, imMarkers=[], imSelected=null, imData=null, imSkipNextReload=false;
+// ====== 观星指数地图 (真实底图 + 网格扫描 + 热力插值 + 风云4B云图叠加) ======
+let imap=null, imBaseLayer=null, imCloudLayer=null, imHeat=null, imMarkers=[], imSelected=null, imData=null, imSkipNextReload=false;
+let imBaseKey="cd", imShowCloud=false, imShowHeat=true, imShowDots=true;
 
-function imTile(){
-  if(APP.state.base==="gd")
-    return {url:"https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", sub:"1234"};
-  return {url:"https://rt{s}.map.gtimg.com/tile?z={z}&x={x}&y={y}&styleid=1", sub:"0123"};
-}
+// 真实底图源 (全部实测可用, 腾讯 rt.map.gtimg.com 返回纯色占位图已弃用)
+const IM_BASE = {
+  cd:  {name:"暗色矢量 (CARTO)", url:"https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", sub:"abcd", maxZoom:19,
+        attr:'&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'},
+  gv:  {name:"高德矢量", url:"https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}", sub:"1234", maxZoom:18,
+        attr:'&copy; 高德'},
+  gd:  {name:"高德卫星影像", url:"https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", sub:"1234", maxZoom:18,
+        attr:'&copy; 高德'},
+  esri:{name:"ESRI World Imagery", url:"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", sub:"", maxZoom:18,
+        attr:'Tiles &copy; Esri'},
+};
 
 function initIndexMap(){
   if(imap) return;
-  imap = L.map("imMap", {zoomControl:true, attributionControl:false}).setView([APP.state.lat,APP.state.lng], 9);
-  imBaseLayer = L.tileLayer(imTile().url, {tileSize:256, subdomains:imTile().sub, maxZoom:18}).addTo(imap);
+  imap = L.map("imMap", {zoomControl:true, attributionControl:true}).setView([APP.state.lat,APP.state.lng], 9);
+  applyImBase();
   imap.on("click", ()=>{
     // 点空白处取消选中高亮
     if(imSelected){ imSelected=null; renderImPick(); }
@@ -20,6 +27,19 @@ function initIndexMap(){
 function imColor(s){
   if(s==null) return "#555";
   return scoreColor(s);
+}
+
+function applyImBase(){
+  const cfg = IM_BASE[imBaseKey] || IM_BASE.cd;
+  if(imBaseLayer){ imap.removeLayer(imBaseLayer); imBaseLayer=null; }
+  imBaseLayer = L.tileLayer(cfg.url, {tileSize:256, subdomains:cfg.sub||"", maxZoom:cfg.maxZoom, attribution:cfg.attr}).addTo(imap);
+  if(imap.attributionControl) imap.attributionControl.setPrefix(false);
+}
+
+function setImBase(k){
+  imBaseKey = k;
+  if(imap) applyImBase();
+}
 }
 
 async function loadIndexMap(force){
@@ -35,10 +55,6 @@ async function loadIndexMap(force){
     const d = await getJSON("/api/scan?"+q, 60000);
     if(d.error) throw new Error(d.error);
     imData = d;
-    // 底图跟随当前底图设置
-    const t = imTile();
-    if(imBaseLayer) imap.removeLayer(imBaseLayer);
-    imBaseLayer = L.tileLayer(t.url, {tileSize:256, subdomains:t.sub, maxZoom:18}).addTo(imap);
     drawImMarkers(d);
     // 摘要
     const ok = d.points.filter(p=>p.score!=null);
@@ -128,3 +144,4 @@ function renderImPick(){
 
 APP.initIndexMap = initIndexMap;
 APP.loadIndexMap = loadIndexMap;
+APP.setImBase = setImBase;

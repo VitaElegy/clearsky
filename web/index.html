@@ -110,6 +110,13 @@
         </select>
         <button onclick="APP.loadIndexMap(true)">刷新</button>
       </div>
+      <div class="loc-row" style="flex-wrap:wrap;gap:6px">
+        <select id="imBase" onchange="APP.setImBase(this.value)" style="min-width:150px">
+          <option value="cd">暗色矢量 (CARTO)</option>
+          <option value="gv">高德矢量</option>
+          <option value="gd">高德卫星影像</option>
+          <option value="esri">ESRI 影像</option>
+        </select>
       <div id="imInfo" class="score-desc" style="margin-top:8px">加载中…</div>
       <div id="imMap" style="height:440px;border-radius:10px;margin-top:8px"></div>
       <div id="imLegend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--dim)"></div>
@@ -164,7 +171,8 @@
       <h2><span class="dot"></span>卫星云图实况 <span class="tag-green">风云4B · 10分钟</span></h2>
       <div id="map"></div>
       <div class="mapbtns">
-        <button onclick="APP.setBase('tx')">腾讯地图</button>
+        <button onclick="APP.setBase('cd')">暗色地图</button>
+        <button onclick="APP.setBase('gv')">高德矢量</button>
         <button onclick="APP.setBase('gd')">高德卫星</button>
         <button onclick="APP.toggleCloud()" id="cloudBtn">风云4B: 开</button>
         <button onclick="APP.toggleHimawari()" id="himawariBtn">向日葵8: 关</button>

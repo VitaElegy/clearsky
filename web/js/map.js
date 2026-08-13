@@ -1,8 +1,12 @@
 // ====== 地图 / 卫星云图 ======
 let map=null, cloudLayer=null, himawariLayer=null, marker=null;
 function tileTemplate(base){
+  // 注: 腾讯 rt.map.gtimg.com 瓦片已实测返回纯色占位图(无内容), 故弃用
   if(base==="tx") return {url:"https://rt{s}.map.gtimg.com/tile?z={z}&x={x}&y={y}&styleid=1", sub:"0123"};
-  if(base==="gd") return {url:"https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", sub:"1234"};
+  if(base==="cd") return {url:"https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", sub:"abcd", maxZoom:19};
+  // 注: 天地图 DataServer 瓦片在 Chrome 被 ORB 拦截(无CORS头), 已弃用
+  if(base==="gv") return {url:"https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}", sub:"1234", maxZoom:18};
+  if(base==="gd") return {url:"https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", sub:"1234", maxZoom:18};
 }
 function initMap(){
   if(map) return;

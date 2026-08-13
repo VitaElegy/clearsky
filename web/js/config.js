@@ -14,5 +14,5 @@ APP.PRE = [
   {name:"重庆四面山", lat:28.5800, lng:106.3700},
   {name:"四姑娘山", lat:31.1100, lng:102.9000},
 ];
-APP.state = {lat:29.5810, lng:104.5053, name:"威远穹窿", base:"tx", cloud:true, himawari:false};
+APP.state = {lat:29.5810, lng:104.5053, name:"威远穹窿", base:"cd", cloud:true, himawari:false};
 APP.loaded = {};   // tab 是否已加载
