@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# 注: chromasky-backend/toolkit 与 pyastroweatherio 已直接提交在本仓库 upstream/ 下,
+#     无需克隆 (commit 见 notes/OPENSOURCE_RESEARCH.md §6).
 # 拉取/还原调研中固定的开源项目 (commit 已固定, 见 notes/OPENSOURCE_RESEARCH.md)
 set -euo pipefail
 cd "$(dirname "$0")/gh"

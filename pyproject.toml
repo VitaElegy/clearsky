@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clearsky-stargazing"
+version = "1.0.0"
+description = "ClearSky观星指数算法实现 (stargazing.twtapp.com) + 开源算法调研"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "scikit-learn>=1.3",
+]
+
+[tool.setuptools]
+packages = ["clearsky"]
+
+[tool.setuptools.package-data]
+clearsky = ["algorithm.json", "data/*.csv", "data/*.json"]

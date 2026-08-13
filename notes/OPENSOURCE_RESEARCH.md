@@ -72,3 +72,18 @@ from clearsky import predict_score, explain
 print(predict_score("icon", 0.1043, 0.7866, 0.8711, 0.0))   # 89.1
 print(explain("icon", 0.1043, 0.7866, 0.8711, 0.0))         # ScoreResult(score=89.1, ...)
 ```
+
+## 6. 另 3 个已并入仓库 (直接提交在 upstream/, 非 gitlink)
+
+| 项目 | 固定 commit | 本地路径 | 说明 |
+|---|---|---|---|
+| chromasky-backend | `68be7c5` | upstream/chromasky-backend | 火烧云/晚霞预测 (乘法 A×B×C×D×10), 非观星指数 |
+| chromasky-toolkit | `121c29e` | upstream/chromasky-toolkit | ChromaSky 工具链 |
+| pyastroweatherio | `403bc98` | upstream/pyastroweatherio | Home Assistant 天文天气物理计算 (astroweather 的核心库) |
+
+安装为可导入包后可从任意目录调用:
+```bash
+cd /Users/elegy/clearsky
+.venv/bin/pip install -e .   # 已执行
+cd /任意目录 && .venv/bin/python -c "from clearsky import predict_score; print(predict_score('icon',0.1043,0.7866,0.8711,0))"  # 89.1
+```
