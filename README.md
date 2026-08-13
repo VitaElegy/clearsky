@@ -130,7 +130,56 @@ IFS  xian   2026-08-15 23:00 cloud=0.076 trans=0.560 seeing=0.563 dew=0.088| 真
 
 ---
 
-# 固定交付物 (2026-08-13, 可长期复用)
+# 固定交付物 (2026-08-13, 可长期复用; v1.1.0 起为正式第三方库)
+
+## 安装 (第三方库)
+```bash
+# 本地开发安装 (可编辑, 推荐)
+pip install -e .
+
+# 或从构建好的 wheel 安装 (可分发/拷给其他机器)
+python -m pip wheel . -w dist/ --no-deps
+pip install dist/twt_stargazing_clearsky-1.1.0-py3-none-any.whl
+
+# 测试/复现实验依赖 (评分算法与健康检查本身零第三方依赖)
+pip install -e ".[test]"
+```
+安装后获得:
+- Python 包: `import clearsky` (任意目录可用)
+- 命令行: `clearsky info|predict|test|batch|check`
+
+## URL 健康检查 (运行前探测连通性+延迟)
+```bash
+# 全量检查 30 个数据源 (默认并发 12, 约 10s)
+clearsky check
+
+# 只查关键链路 (观星指数/光害/7Timer/风云4B) — 最快
+clearsky check --group core
+clearsky check --critical-only
+
+# 单组 / JSON / 严格模式 (有失败即退出码 1)
+clearsky check --group weather --json
+clearsky check --strict
+
+# Python API
+from clearsky import check_all, check_url, get_urls
+rep = check_all()                          # 全部 30 端点
+rep = check_all(group="core")          # 只查核心
+print(rep.summary())                       # {total, ok, fail, critical_fail, elapsed_s, avg_total_ms}
+for r in rep.results:                      # 每端点: id/status/connect_ms/ttfb_ms/total_ms
+    print(r.ok, r.id, r.status, f"{r.total_ms:.0f}ms")
+```
+
+**Web 启动前自动检查** (实现网页):
+```bash
+python web/server.py --check                 # 启动前检查, 失败也启动
+python web/server.py --check --check-exit    # 关键服务失败则中止启动
+python web/server.py 8890 --check --check-group core
+```
+
+**URL 注册表**: `clearsky/urls.py` 维护 30 个端点 (6 组: core/nodeapi/weather/satellite/maps/misc),
+默认坐标=威远穹窿 (29.58,104.50), 可用 `build_urls(coords={...})` 换成任意观测地重建。
+检查指标: 连接(含 TLS) / TTFB / 总耗时, 自动跟随重定向, 只读响应前 2KB 避免下载大图。
 
 ## 快速调用
 ```bash
@@ -161,14 +210,18 @@ explain("icon", 0.1043, 0.7866, 0.8711, 0.0)         # ScoreResult(score=89.1, .
 | `clearsky/scoring.py` | 算法实现核心 (predict_score / explain / COEFFICIENTS) |
 | `clearsky/__init__.py` | 包导出 (from clearsky import predict_score) |
 | `clearsky/algorithm.json` | **机器可读算法元数据** (系数/封顶/指标/引用, 程序可直接读取) |
-| `clearsky/cli.py` | 命令行入口 (info/predict/test/batch) |
+| `clearsky/cli.py` | 命令行入口 (info/predict/test/batch/check) + `clearsky` 入口点 |
+| `clearsky/urls.py` | **URL 注册表** (30 端点/6 组/关键性标记/默认坐标) |
+| `clearsky/healthcheck.py` | **URL 健康检查** (连通+连接/TTFB/总延迟, 并发, 报告) |
+| `clearsky/test_healthcheck.py` | healthcheck 离线单元测试 (本地 mock HTTP) |
 | `clearsky/test_scoring.py` | 复现测试 (20 次地点分组交叉验证) |
 | `clearsky/data/sample_dataset.csv` | 2016 行真实 API 采样 (训练/验证数据) |
 | `clearsky/data/nightly_probe.json` | 整晚分聚合探针 |
 | `notes/OPENSOURCE_RESEARCH.md` | **开源算法调研报告 (固定版, 含 commit hash)** |
 | `notes/gh_search/repos.json` | GitHub 搜索原始结果 |
 | `upstream/fetch_pinned.sh` | 一键克隆/还原 4 个固定 commit 的开源项目 |
-| `requirements.txt` | numpy/scipy/pandas/scikit-learn |
+| `requirements.txt` | 测试依赖说明 (运行时零第三方依赖) |
+| `pyproject.toml` | 第三方库构建配置 (wheel/entry point/元数据) |
 
 ## 实现结论 (一句话版)
 - ICON 连续段 **完全实现**: 公式 `89.673-88.057·cloud+5.290·trans+5.111·seeing-8.905·dew`,

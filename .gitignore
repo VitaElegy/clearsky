@@ -15,3 +15,8 @@ upstream/gh/
 
 # pip editable 构建产物
 *.egg-info/
+
+# 构建产物 / 测试缓存
+dist/
+build/
+.pytest_cache/

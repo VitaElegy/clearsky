@@ -57,6 +57,20 @@ def cmd_batch(args):
         w.writeheader(); w.writerows(out_rows)
     print(f"batch done: {len(out_rows)} rows -> {args.output}")
 
+def cmd_check(args):
+    from .healthcheck import check_all, format_report
+    rep = check_all(group=args.group, timeout=args.timeout,
+                    critical_only=args.critical_only, workers=args.workers)
+    if args.json:
+        print(json.dumps(rep.to_dict(), ensure_ascii=False, indent=2))
+    else:
+        print(format_report(rep, verbose=args.verbose))
+    if args.strict and rep.fail_count:
+        sys.exit(1)
+    if args.critical_only and rep.critical_failures:
+        sys.exit(1)
+
+
 def main():
     p = argparse.ArgumentParser(prog="python -m clearsky.cli", description="ClearSky观星指数实现 CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -75,10 +89,21 @@ def main():
     ba.add_argument("-i", "--input", required=True)
     ba.add_argument("-o", "--output", required=True)
     ba.set_defaults(fn=cmd_batch)
+    ch = sub.add_parser("check", help="运行前 URL 健康检查 (连通性+延迟)")
+    ch.add_argument("--group", default="all", help="all|core|nodeapi|weather|satellite|maps|misc")
+    ch.add_argument("--timeout", type=float, default=None, help="单请求超时秒数")
+    ch.add_argument("--workers", type=int, default=12, help="并发线程数")
+    ch.add_argument("--critical-only", action="store_true", help="只检查关键服务")
+    ch.add_argument("--verbose", action="store_true", help="表格附带 URL")
+    ch.add_argument("--json", action="store_true", help="JSON 输出")
+    ch.add_argument("--strict", action="store_true", help="有失败时以非零退出")
+    ch.set_defaults(fn=cmd_check)
     args = p.parse_args()
     if args.cmd == "info": cmd_info(args)
     elif args.cmd == "test": cmd_test(args)
+    elif args.cmd == "check": cmd_check(args)
     else: args.fn(args)
 
 if __name__ == "__main__":
     main()
+
