@@ -12,3 +12,6 @@ upstream/gh/
 
 # 临时文件
 *.tmp
+
+# pip editable 构建产物
+*.egg-info/
