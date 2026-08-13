@@ -20,11 +20,11 @@ python3 server.py 8890
 |---|---|---|
 | 观星指数 5晚逐小时 | ClearSky stargazing.twtapp.com (ICON模型) | ✅ 直连 |
 | 多模型对比 ICON vs IFS | ClearSky接口 | ✅ 直连 |
-| **观星指数地图 (区域网格扫描)** | 后端 `/api/scan` 并发扫 3×3~7×7 网格点, Leaflet 地图着色选点 | ✅ 后端聚合 |
+| **观星指数地图 (区域网格扫描)** | 后端 `/api/scan` 并发扫 3×3~7×7 网格点, Leaflet 真实底图(CARTO暗色/高德矢量/高德卫星/ESRI) + IDW热力连续色面 + 网格圆点选点 + 风云4B云图叠加 | ✅ 后端聚合 |
 | 晴天钟 7天对照 | 7Timer astro.php (ClearSky上游) | ✅ 代理 |
 | 光污染 Bortle/MPSAS/历年 | ClearSky nodeapi (DarkMap 2025) | ✅ 代理 |
 | 卫星云图实况 | 国家卫星气象中心 风云4B | ✅ 直连 |
-| 底图 | 腾讯矢量 / 高德卫星 (无key) | ✅ 直连 |
+| 底图 | CARTO暗色 / 高德矢量 / 高德卫星 / ESRI (无key直连) | ✅ 直连 |
 | 流星雨活跃/全年 | 内置 all_meteor.json (App资产) | ✅ 本地 |
 | 天象事件 | ClearSky /api/astro/events | ✅ 代理 |
 | 太阳活动 Kp/太阳风/极光/Bz | ClearSky nodeapi (NOAA上游) | ✅ 代理 |
