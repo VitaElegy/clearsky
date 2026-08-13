@@ -54,3 +54,25 @@ async function loadComets(){
   }
 }
 APP.loadAstro = loadAstro; APP.loadMeteors = loadMeteors; APP.loadComets = loadComets;
+
+// ====== 流星无线电回波图 (nodeapi /skydata/meteor_radio_latest.png) ======
+async function loadMeteorRadio(){
+  const box = $("meteorRadioBox");
+  box.innerHTML = `<div class="loading">加载中…</div>`;
+  try{
+    const url = proxy("https://nodeapi.knockdream.com/skydata/meteor_radio_latest.png");
+    const img = new Image();
+    img.style.cssText = "width:100%;max-width:760px;border-radius:8px;background:#0a1120";
+    img.alt = "全球流星无线电台回波";
+    await new Promise((ok,no)=>{
+      img.onload = ok; img.onerror = ()=>no(new Error("图片加载失败"));
+      img.src = url;
+    });
+    box.innerHTML = "";
+    box.appendChild(img);
+    box.insertAdjacentHTML("beforeend", `<div style="font-size:11px;color:var(--dim);margin-top:6px">全球流星无线电台实时回波强度（横轴时间 / 纵轴频率）· 活跃流星雨期间回波增强</div>`);
+  }catch(e){
+    box.innerHTML = `<div class="err">流星无线电加载失败: ${esc(e.message)}</div>`;
+  }
+}
+APP.loadMeteorRadio = loadMeteorRadio;

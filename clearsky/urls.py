@@ -75,6 +75,15 @@ def build_urls(coords: Optional[dict] = None) -> list:
         u("orbit_cache", "可见卫星 TLE 缓存 (CelesTrak 镜像)", "core",
           "https://orbit-cache.twtapp.com/public/v1/catalogs/visual",
           critical=False, headers=jh, note="157 颗可见卫星 TLE"),
+        u("sunset_glow", "日出/日落辉光 (sunset-glow)", "core",
+          f"https://stargazing.twtapp.com/api/v1/sunset-glow/point/range?lat={lat}&lng={lng}&key={KEY}",
+          critical=False, headers=jh, note="辉光指数/峰值时刻/方位"),
+        u("nodeapi_ovation", "OVATION 极光卵实况 (NOAA 网格)", "nodeapi",
+          "https://nodeapi.knockdream.com/skydata/ovation_aurora_latest.json",
+          critical=False, headers=jh, note="~670KB 全球格点, 健康检查只读前 2KB"),
+        u("nodeapi_meteor_radio", "流星无线电回波图", "nodeapi",
+          "https://nodeapi.knockdream.com/skydata/meteor_radio_latest.png",
+          critical=False, headers=jh, note="全球流星无线电台实时回波 PNG"),
 
         # ---------- nodeapi 数据网关 ----------
         u("nodeapi_lightpollution", "光污染等级 (DarkMap 2025)", "nodeapi",

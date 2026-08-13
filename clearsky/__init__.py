@@ -8,7 +8,7 @@
     # 数据源 URL 健康检查（运行前探测连通性与延迟）
     from clearsky import check_all, check_url, get_urls
     report = check_all(group="core")          # 只查关键链路
-    report = check_all()                       # 查全部 30 个端点
+    report = check_all()                       # 查全部 33 个端点
     print(report.summary())
 
     # 命令行（已注册 clearsky 入口点）

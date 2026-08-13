@@ -1,10 +1,13 @@
 // ====== 数据源健康检查 (后端 /api/health, clearsky.healthcheck) ======
+let healthSeq = 0; // 竞态锁: 并发检查时只允许最新一次请求更新页面
 async function loadHealth(forceGroup){
+  const seq = ++healthSeq;
   $("healthSummary").innerHTML = `<div class="loading">检查中…（并发探测数据源，约 3-15 秒）</div>`;
   $("healthTable").innerHTML = "";
   const group = forceGroup || ($("healthGroup") ? $("healthGroup").value : "all");
   try{
     const d = await getJSON("/api/health?group="+encodeURIComponent(group)+"&timeout=8");
+    if(seq !== healthSeq) return; // 已有更新的检查发起, 丢弃过期结果
     if(d.error) throw new Error(d.error);
     const s = d.summary || {};
     const dot = $("healthDot");
@@ -34,6 +37,7 @@ async function loadHealth(forceGroup){
     $("healthTable").innerHTML = rows || `<div class="loading">无结果</div>`;
     toast(`健康检查完成: ${s.ok}/${s.total} 可用，平均 ${s.avg_total_ms}ms`);
   }catch(e){
+    if(seq !== healthSeq) return;
     $("healthSummary").innerHTML = `<div class="err">健康检查失败: ${esc(e.message)}（请确认后端已安装 clearsky 库并启动 server.py）</div>`;
     const dot = $("healthDot"); if(dot){ dot.className="health-dot bad"; dot.title="健康检查不可用"; }
   }

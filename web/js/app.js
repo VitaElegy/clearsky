@@ -36,8 +36,8 @@ function switchTab(name){
     weather: ()=>{ APP.loadTimer(); APP.loadOpenMeteo(); APP.loadMetno(); APP.load15days(); APP.loadAQI(); },
     light: ()=>{ APP.loadLP(); APP.loadElevation(); },
     cloud: ()=>{ APP.initMap(); APP.recenter(); },
-    sun: ()=>{ APP.loadSolar(); APP.loadAuroraForecast(); },
-    events: ()=>{ APP.loadAstro(); APP.loadMeteors(); APP.loadComets(); },
+    sun: ()=>{ APP.loadSolar(); APP.loadAuroraForecast(); APP.loadOvation(); APP.loadGlow(); },
+    events: ()=>{ APP.loadAstro(); APP.loadMeteors(); APP.loadComets(); APP.loadMeteorRadio(); },
     sat: ()=>{ APP.loadOrbitSat(); APP.loadStarlink(); APP.loadQianfan(); },
     health: ()=>{ APP.loadHealth(); },
     about: ()=>{ APP.loadAbout(); },
@@ -55,8 +55,8 @@ async function loadAll(){
     score: ()=>APP.loadScore(),
     weather: ()=>{ APP.loadTimer(); APP.loadOpenMeteo(); APP.loadMetno(); APP.load15days(); APP.loadAQI(); },
     light: ()=>{ APP.loadLP(); APP.loadElevation(); },
-    sun: ()=>{ APP.loadSolar(); APP.loadAuroraForecast(); },
-    events: ()=>{ APP.loadAstro(); APP.loadMeteors(); APP.loadComets(); },
+    sun: ()=>{ APP.loadSolar(); APP.loadAuroraForecast(); APP.loadOvation(); APP.loadGlow(); },
+    events: ()=>{ APP.loadAstro(); APP.loadMeteors(); APP.loadComets(); APP.loadMeteorRadio(); },
     sat: ()=>{ APP.loadOrbitSat(); APP.loadStarlink(); APP.loadQianfan(); },
   };
   for(const [name,fn] of Object.entries(reload)){ if(APP.loaded[name]) fn(); }
@@ -70,7 +70,7 @@ function boot(){
   renderChips(); syncInputs();
   APP.initMap(); APP.recenter();
   switchTab("score");
-  // 启动即做一次健康检查 (更新顶部状态点): 用关键服务分组, 快且不占带宽; 完整 30 端点在「健康」Tab 检查
+  // 启动即做一次健康检查 (更新顶部状态点): 用关键服务分组, 快且不占带宽; 完整 33 端点在「健康」Tab 检查
   setTimeout(()=>APP.loadHealth("core"), 400);
   setInterval(()=>{ if(document.visibilityState==="visible") APP.loadHealth("core"); }, 15*60*1000);
   setInterval(()=>{ if(document.visibilityState==="visible" && APP.loaded.cloud) APP.recenter(); }, 600000);
