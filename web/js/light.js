@@ -39,7 +39,7 @@ async function loadElevation(){
   const jobs = [
     ["Open-Elevation", `https://api.open-elevation.com/api/v1/lookup?locations=${APP.state.lat},${APP.state.lng}`,
       d=>d.results?.[0]?.elevation],
-    ["OpenTopoData SRTM30", `https://api.opentopodata.org/v1/srtm30m?locations=${APP.state.lat},${APP.state.lng}`,
+    ["OpenTopoData SRTM30", proxy(`https://api.opentopodata.org/v1/srtm30m?locations=${APP.state.lat},${APP.state.lng}`),
       d=>d.results?.[0]?.elevation],
   ];
   let html = "";

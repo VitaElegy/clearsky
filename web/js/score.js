@@ -29,7 +29,7 @@ async function loadScore(){
     $("scoreBig").innerHTML = `<div class="err">观星指数接口失败: ${esc(e.message)}</div>`;
   }
   try{
-    const m = await getJSON(`https://stargazing.twtapp.com/api/v1/stargazing/nightly/point/range/all?lat=${APP.state.lat}&lng=${APP.state.lng}&key=${APP.KEY}`);
+    const m = await getJSON(proxy(`https://stargazing.twtapp.com/api/v1/stargazing/nightly/point/range/all?lat=${APP.state.lat}&lng=${APP.state.lng}&key=${APP.KEY}`));
     let mh="";
     for(const [mk,md] of Object.entries(m.models||{})){
       const label = mk==="icon" ? "ICON (德国 ICON)" : "IFS (ECMWF)";
