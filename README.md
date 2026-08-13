@@ -170,12 +170,16 @@ for r in rep.results:                      # 每端点: id/status/connect_ms/ttf
     print(r.ok, r.id, r.status, f"{r.total_ms:.0f}ms")
 ```
 
-**Web 启动前自动检查** (实现网页):
+**Web 启动前自动检查** (实现网页, **默认开启**):
 ```bash
-python web/server.py --check                 # 启动前检查, 失败也启动
-python web/server.py --check --check-exit    # 关键服务失败则中止启动
-python web/server.py 8890 --check --check-group core
+python web/server.py                         # 启动前自动全量健康检查(约10-15s)+延迟TOP5, 失败不阻塞
+python web/server.py --no-check              # 跳过检查直接启动
+python web/server.py --check-exit            # 关键服务失败则中止启动
+python web/server.py --check-group core  # 只查核心分组
 ```
+
+**Web 页内健康检查**: 「🩺 健康」Tab 调用 `/api/health`, 展示全部数据源状态 + 连接/TTFB/总延迟,
+顶部状态点实时反映关键服务是否正常; 每 15 分钟自动复查。启动脚本即 `web/server.py`。
 
 **URL 注册表**: `clearsky/urls.py` 维护 30 个端点 (6 组: core/nodeapi/weather/satellite/maps/misc),
 默认坐标=威远穹窿 (29.58,104.50), 可用 `build_urls(coords={...})` 换成任意观测地重建。
@@ -214,6 +218,10 @@ explain("icon", 0.1043, 0.7866, 0.8711, 0.0)         # ScoreResult(score=89.1, .
 | `clearsky/urls.py` | **URL 注册表** (30 端点/6 组/关键性标记/默认坐标) |
 | `clearsky/healthcheck.py` | **URL 健康检查** (连通+连接/TTFB/总延迟, 并发, 报告) |
 | `clearsky/test_healthcheck.py` | healthcheck 离线单元测试 (本地 mock HTTP) |
+| `clearsky/test_healthcheck.py` | healthcheck 离线单元测试 (本地 mock HTTP) |
+| `web/index.html` + `web/js/*` | 综合网页 (9 Tab: 观星/天气/光害/云图/极光/天象/卫星/健康/关于) |
+| `web/css/app.css` | 网页深色主题样式 |
+| `web/server.py` | 本地服务: 启动前健康检查 + 静态页 + `/api/*` + `/proxy` 代理 |
 | `clearsky/test_scoring.py` | 复现测试 (20 次地点分组交叉验证) |
 | `clearsky/data/sample_dataset.csv` | 2016 行真实 API 采样 (训练/验证数据) |
 | `clearsky/data/nightly_probe.json` | 整晚分聚合探针 |
