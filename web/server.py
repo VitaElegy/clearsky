@@ -150,11 +150,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
-socketserver.TCPServer.allow_reuse_address = True
+# 多线程处理: /api/health 全量检查(10-15s) 不能阻塞其他静态/代理请求
+class ThreadingServer(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
 
 if __name__ == "__main__":
     if not ARGS.no_check and not run_healthcheck(ARGS.check_group, ARGS.check_exit):
         sys.exit(1)
-    with socketserver.TCPServer(("0.0.0.0", PORT), Handler) as httpd:
+    with ThreadingServer(("0.0.0.0", PORT), Handler) as httpd:
         print(f"ClearSky实现版已启动: http://localhost:{PORT}  (手机同WiFi用 http://<本机IP>:{PORT})")
         httpd.serve_forever()

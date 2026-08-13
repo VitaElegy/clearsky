@@ -1,8 +1,8 @@
 // ====== 数据源健康检查 (后端 /api/health, clearsky.healthcheck) ======
-async function loadHealth(){
-  $("healthSummary").innerHTML = `<div class="loading">检查中…（并发探测全部数据源，约 3-15 秒）</div>`;
+async function loadHealth(forceGroup){
+  $("healthSummary").innerHTML = `<div class="loading">检查中…（并发探测数据源，约 3-15 秒）</div>`;
   $("healthTable").innerHTML = "";
-  const group = $("healthGroup") ? $("healthGroup").value : "all";
+  const group = forceGroup || ($("healthGroup") ? $("healthGroup").value : "all");
   try{
     const d = await getJSON("/api/health?group="+encodeURIComponent(group)+"&timeout=8");
     if(d.error) throw new Error(d.error);

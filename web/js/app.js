@@ -70,9 +70,9 @@ function boot(){
   renderChips(); syncInputs();
   APP.initMap(); APP.recenter();
   switchTab("score");
-  // 启动即做一次健康检查 (更新顶部状态点), 之后每 15 分钟自动复查
-  setTimeout(()=>APP.loadHealth(), 400);
-  setInterval(()=>{ if(document.visibilityState==="visible") APP.loadHealth(); }, 15*60*1000);
+  // 启动即做一次健康检查 (更新顶部状态点): 用关键服务分组, 快且不占带宽; 完整 30 端点在「健康」Tab 检查
+  setTimeout(()=>APP.loadHealth("core"), 400);
+  setInterval(()=>{ if(document.visibilityState==="visible") APP.loadHealth("core"); }, 15*60*1000);
   setInterval(()=>{ if(document.visibilityState==="visible" && APP.loaded.cloud) APP.recenter(); }, 600000);
 }
 APP.pick = pick; APP.applyLoc = applyLoc; APP.switchTab = switchTab; APP.loadAll = loadAll;
