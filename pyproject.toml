@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "clearsky-stargazing"
 version = "1.1.0"
-description = "ClearSky观星指数算法实现 (stargazing.twtapp.com) + 数据源 URL 健康检查"
+description = "观星指数评分算法 + 数据源 URL 健康检查 (ClearSky 综合服务)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -40,8 +40,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/example/clearsky-stargazing"
-Source = "https://github.com/example/clearsky-stargazing"
+Homepage = "https://github.com/VitaElegy/clearsky"
+Source = "https://github.com/VitaElegy/clearsky"
 
 [project.scripts]
 clearsky = "clearsky.cli:main"

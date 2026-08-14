@@ -23,7 +23,7 @@ async function loadScore(){
       }
     }
     $("hours").innerHTML = html;
-    // 本地实现对照: 用 API 首小时字段调后端 clearsky
+    // 本地算法对照: 用 API 首小时字段调后端 clearsky
     APP.loadReplica(h0, avg);
   }catch(e){
     $("scoreBig").innerHTML = `<div class="err">观星指数接口失败: ${esc(e.message)}</div>`;
@@ -44,7 +44,7 @@ async function loadScore(){
   }
 }
 
-// 本地实现算法对照 (后端 /api/predict, 基于 clearsky 库)
+// 本地算法对照 (后端 /api/predict, 基于 clearsky 库)
 async function loadReplica(h, apiAvg){
   try{
     const q = new URLSearchParams({model:"icon", cloud:h.cloudIndex, trans:h.transparency, seeing:h.seeing, dew:h.dewRisk});
@@ -59,9 +59,9 @@ async function loadReplica(h, apiAvg){
     $("repDetail").innerHTML =
       `对比 ${esc(h.hourLabel||"")} · 云量${fmt(h.cloudIndex*100,0)}% 透明度${fmt(h.transparency*100,0)}% 视宁度${fmt(h.seeing*100,0)}% 结露${fmt(h.dewRisk*100,0)}%` +
       (d.capped ? ` · <span style="color:var(--warn)">天气封顶触发: ${esc(d.reasons.join(", ")||"未知")} → ${fmt(d.score,0)}</span>` : " · 无天气封顶") +
-      `<br><span style="font-size:10px;color:var(--dim)">实现公式(ICON 连续段 MAE≈0.38, ±1分内 93.4%)：89.673 − 88.057·云量 + 5.290·透明度 + 5.111·视宁度 − 8.905·结露</span>`;
+      `<br><span style="font-size:10px;color:var(--dim)">拟合公式(ICON 连续段 MAE≈0.38, ±1分内 93.4%)：89.673 − 88.057·云量 + 5.290·透明度 + 5.111·视宁度 − 8.905·结露</span>`;
   }catch(e){
-    $("repDetail").innerHTML = `<span class="err">实现对照不可用: ${esc(e.message)}</span>`;
+    $("repDetail").innerHTML = `<span class="err">算法对照不可用: ${esc(e.message)}</span>`;
   }
 }
 APP.loadScore = loadScore;

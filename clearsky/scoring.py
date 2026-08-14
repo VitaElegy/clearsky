@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-ClearSky(stargazing.twtapp.com) 观星指数算法实现
-=================================================
+观星指数评分算法
+================
 
-建模结论（基于 2016 条真实 API 采样，14 地点 × ICON/IFS × 3 天 × 24h）：
+基于 2016 条公开 API 采样（14 地点 × ICON/IFS × 3 天 × 24h）拟合的评分模型：
 
   观星指数 = 连续线性基础分 + 离散"天气封顶"
 
@@ -13,12 +13,12 @@ ClearSky(stargazing.twtapp.com) 观星指数算法实现
   连续基础分（IFS；同上测试 R²≈0.950 / MAE≈1.56，剩余误差多为天气封顶）:
     base = 90.04 - 87.85*cloudIndex + 5.13*transparency + 4.67*seeing - 32.64*dewRisk
 
-  天气封顶（API 只暴露 4 个字段，触发条件需外部天气数据辅助识别）:
+  天气封顶（接口只暴露 4 个字段，触发条件需外部天气数据辅助识别）:
     - 10.0 : 降水/雷暴/暴风雨等"不可观测"天气 (ICON 35 行 / IFS 79 行精确等于 10.0)
     - 25.0 : 一般性降水/湿气/多云等"很差"天气 (ICON 14 行 / IFS 116 行精确等于 25.0)
     - ~55  : 雾/100% 湿度+低云 (哈尔滨 ICON, cloud=0 但 RH=100%, score≈54.8-59.2)
-    说明: App 字符串明确指数还包含月光/降水/风/结露等因素，
-          但 API 未暴露这些字段，故封顶只能部分实现。
+    说明: 指数理论上还包含月光/降水/风/结露等因素，
+          但接口未暴露这些字段，故封顶只能部分实现。
 
 用法:
     from scoring import predict_score, explain
@@ -97,7 +97,7 @@ def predict_score(model: str, cloud_index: float, transparency: float,
                   seeing: float, dew_risk: float,
                   precipitation: Optional[bool] = None,
                   fog: Optional[bool] = None) -> float:
-    """实现ClearSky观星指数 (0-100)。
+    """预测观星指数 (0-100)。
 
     参数:
         model: 'icon' 或 'ifs'

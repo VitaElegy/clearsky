@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ClearSky实现版 - 本地服务 + API代理
+# ClearSky 本地服务 + API代理
 # 用法: python3 server.py [端口] [--no-check] [--check-exit]
 #   端口默认 8890; 启动前自动做 URL 健康检查(延迟报告); --no-check 跳过; --check-exit 关键失败中止
 # 手机同网访问: http://<电脑IP>:8890
@@ -189,7 +189,7 @@ def clearsky_api(path, qs):
 
 
 def parse_args():
-    ap = argparse.ArgumentParser(description="ClearSky实现版本地服务 + API代理")
+    ap = argparse.ArgumentParser(description="ClearSky 本地服务 + API代理")
     ap.add_argument("port", nargs="?", type=int, default=8890, help="监听端口 (默认 8890)")
     ap.add_argument("--no-check", action="store_true", help="跳过启动前 URL 健康检查")
     ap.add_argument("--check-exit", action="store_true", help="关键服务失败时中止启动")
@@ -268,5 +268,5 @@ if __name__ == "__main__":
     if not ARGS.no_check and not run_healthcheck(ARGS.check_group, ARGS.check_exit):
         sys.exit(1)
     with ThreadingServer(("0.0.0.0", PORT), Handler) as httpd:
-        print(f"ClearSky实现版已启动: http://localhost:{PORT}  (手机同WiFi用 http://<本机IP>:{PORT})")
+        print(f"ClearSky 已启动: http://localhost:{PORT}  (手机同WiFi用 http://<本机IP>:{PORT})")
         httpd.serve_forever()

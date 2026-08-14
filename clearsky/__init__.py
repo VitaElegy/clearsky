@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""ClearSky观星指数算法实现包 (APP Stargazing Score Replica) —— 第三方库。
+"""观星指数评分算法 + 数据源健康检查 (ClearSky) —— 第三方库。
 
 用法:
     # 观星指数评分（纯本地，零网络）

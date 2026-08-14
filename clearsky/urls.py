@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""ClearSky相关 URL 注册表（健康检查 / 数据源清单）。
+"""数据源 URL 注册表（健康检查 / 数据源清单）。
 
 用法:
     from clearsky.urls import URLS, get_urls, DEFAULT_COORDS
@@ -9,14 +9,14 @@
 说明:
     - 默认坐标 = 威远穹窿 (29.58, 104.50)，可整体替换成任意观测地。
     - 分组:
-        core    ClearSky自建主服务（观星指数等，最核心）
-        nodeapi ClearSky nodeapi 数据网关（光害/天象/太阳活动/天气等）
+        core    主服务（观星指数等，最核心）
+        nodeapi 数据网关（光害/天象/太阳活动/天气等）
         weather     气象上游（7Timer / Open-Meteo / 中央气象台）
         satellite   卫星云图实况（风云4B / 向日葵8 / 阿里云镜像）
         maps        底图/导航（腾讯/高德/天地图/DarkMap）
         misc        其他开放数据（CelesTrak / NOAA / GIBS / DSS / 高程）
     - critical=True 表示该服务挂了会直接影响"观星决策"主链路。
-    - 密钥均为 App 内公开硬编码，仅用于学习实现，勿高频调用或商用。
+    - 公开演示密钥仅用于低频率个人/学习调用，勿高频调用或商用。
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -24,13 +24,13 @@ from typing import Optional
 # 默认观测点: 威远穹窿 (四川威远县)
 DEFAULT_COORDS = {"lat": 29.58, "lng": 104.50, "name": "weiyuan"}
 
-# 公开硬编码密钥（建模自 App，仅学习用途）
+# 公开演示密钥（仅用于低频率个人/学习调用）
 KEY = "clearsky_demo_2026"
 TIANDITU_TK = "6b826f1206bb5330228f54ee95ec6af8"
 
 # 通用浏览器 UA（部分上游按 UA 返回不同内容）
 UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
-REF_APP = "https://www.twtapp.com/"
+REFERER = "https://www.twtapp.com/"
 
 
 @dataclass(frozen=True)
@@ -60,14 +60,14 @@ def build_urls(coords: Optional[dict] = None) -> list:
                         headers or {}, note)
 
     jh = {"User-Agent": UA, "Accept": "application/json,text/plain,*/*",
-          "Referer": REF_APP}
+          "Referer": REFERER}
 
     return [
-        # ---------- ClearSky自建主服务 ----------
+        # ---------- 主服务（观星指数等） ----------
         u("stargazing_hourly", "观星指数·逐小时 (ICON/IFS)", "core",
           f"https://stargazing.twtapp.com/api/v1/stargazing/nightly/hourly/range?lat={lat}&lng={lng}&key={KEY}",
           critical=True, headers=jh,
-          note="观星指数原始数据，实现算法所用"),
+          note="观星指数原始数据，评分算法所用"),
         u("stargazing_allday", "观星指数·整晚聚合", "core",
           f"https://stargazing.twtapp.com/api/v1/stargazing/nightly/point/range/all?lat={lat}&lng={lng}&key={KEY}",
           critical=True, headers=jh,
@@ -121,7 +121,7 @@ def build_urls(coords: Optional[dict] = None) -> list:
           critical=False, headers=jh),
 
         # ---------- 气象上游 ----------
-        u("seven_timer", "7Timer 晴天钟 (ClearSky上游)", "weather",
+        u("seven_timer", "7Timer 晴天钟", "weather",
           f"https://www.7timer.info/bin/astro.php?lon={lng}&lat={lat}&ac=0&unit=metric&output=json&tzshift=8",
           critical=True, headers={"User-Agent": UA},
           note="cloudcover/seeing/transparency/prec_type 等原始观星参数"),
@@ -191,7 +191,7 @@ URLS = build_urls()
 # 分组定义（用于 --group 参数与报告排序）
 GROUPS = ["core", "nodeapi", "weather", "satellite", "maps", "misc"]
 GROUP_LABELS = {
-    "core": "ClearSky主服务",
+    "core": "主服务",
     "nodeapi": "nodeapi 数据网关",
     "weather": "气象上游",
     "satellite": "卫星云图",

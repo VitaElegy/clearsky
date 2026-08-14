@@ -9,7 +9,7 @@ function updateLinks(){
 
 const MODULES = [
   ["观星指数", "ICON/IFS 数值预报 · 逐小时+整晚分", "直连"],
-  ["晴天钟 7天", "7Timer astro.php (ClearSky同上游)", "代理"],
+  ["晴天钟 7天", "7Timer astro.php", "代理"],
   ["Open-Meteo / MetNo", "开放预报 + 数字高程", "直连/代理"],
   ["15天天气 / 空气质量", "OpenWeatherMap / WAQI (nodeapi)", "代理"],
   ["光污染", "DarkMap 2025 · MPSAS/Bortle/历年", "代理"],
@@ -60,7 +60,7 @@ async function loadAbout(){
   try{
     const m = await getJSON("/api/info");
     $("aboutOpen").innerHTML = openSrcHtml(m.open_source_references) +
-      `<div style="margin-top:6px;font-size:11px;color:var(--dim)">结论: ClearSky算法自研未开源；ICON 实现 MAE≈0.4 已完全可用；更科学的替代见 DarkHours / pyastroweatherio</div>`;
+      `<div style="margin-top:6px;font-size:11px;color:var(--dim)">结论: ICON 连续段拟合 MAE≈0.4 已完全可用；更科学的替代见 DarkHours / pyastroweatherio</div>`;
   }catch(e){
     $("aboutOpen").innerHTML = `<div class="err">开源调研加载失败: ${esc(e.message)}</div>`;
   }

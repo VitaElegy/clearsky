@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "algorithm": {
-    "name": "ClearSky观星指数 (APP Stargazing Index) 建模实现",
-    "source": "stargazing.twtapp.com (FastAPI), App 3.4.0 建模 + 2016 条真实 API 采样",
+    "name": "ClearSky 观星指数评分算法",
+    "source": "公开 API 采样 (2016 条, 14 地点 × ICON/IFS × 3 天 × 24h)",
     "method": "线性回归(连续基础分) + 离散天气封顶",
     "created": "2026-08-13",
     "version": "1.0.0",
@@ -34,7 +34,7 @@
         "continuous_domain": {"r2": "0.9534±0.0476", "mae": "1.524±1.157", "within1": "86.1%", "within3": "89.1%", "within5": "90.3%", "p95": 9.58}
       }
     },
-    "conclusion": "ICON 连续段已完全实现 (MAE≈0.4, 98% 误差<3); IFS 19.3% 行被隐藏天气封顶, 只能实现连续段; 封顶需外部降水/雾字段"
+    "conclusion": "ICON 连续段已完全拟合 (MAE≈0.4, 98% 误差<3); IFS 19.3% 行被隐藏天气封顶, 只能拟合连续段; 封顶需外部降水/雾字段"
   },
   "data_files": {
     "sample_dataset": "clearsky/data/sample_dataset.csv (2016 行: 14 地点×ICON/IFS×3天×24h)",

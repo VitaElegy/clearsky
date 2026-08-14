@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>ClearSky实现 · 完整版</title>
+<title>ClearSky · 观星指数综合服务</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <header>
   <div class="hd-left">
-    <h1>🌌 ClearSky实现 · 完整版</h1>
+    <h1>🌌 ClearSky · 观星指数综合服务</h1>
     <div class="hd-loc" id="hdLoc">威远穹窿 29.5810,104.5053</div>
   </div>
   <div class="hd-right">
@@ -60,14 +60,14 @@
     </div>
 
     <div class="card">
-      <h2><span class="dot"></span>本地实现算法对照 <span class="tag-blue">后端 clearsky 库</span></h2>
+      <h2><span class="dot"></span>本地算法对照 <span class="tag-blue">后端 clearsky 库</span></h2>
       <div class="rep-grid">
         <div class="rep-cell">
           <div class="k">API 实际分数 (ICON)</div>
           <div class="v" id="repApi">-</div>
         </div>
         <div class="rep-cell">
-          <div class="k">本地实现分数</div>
+          <div class="k">本地算法分数</div>
           <div class="v" id="repLocal">-</div>
         </div>
         <div class="rep-cell">
@@ -202,7 +202,7 @@
       <div id="ovationBox" class="loading">加载中…</div>
     </div>
     <div class="card">
-      <h2><span class="dot"></span>日出/日落辉光 <span class="tag-blue">ClearSky sunset-glow</span></h2>
+      <h2><span class="dot"></span>日出/日落辉光 <span class="tag-blue">sunset-glow</span></h2>
       <div id="glowBox" class="loading">加载中…</div>
     </div>
   </section>
@@ -251,7 +251,7 @@
       <div class="loc-row">
         <select id="healthGroup">
           <option value="all">全部 (34)</option>
-          <option value="core">ClearSky主服务</option>
+          <option value="core">主服务</option>
           <option value="nodeapi">nodeapi 网关</option>
           <option value="weather">气象上游</option>
           <option value="satellite">卫星云图</option>
@@ -277,7 +277,7 @@
       </div>
     </div>
     <div class="card">
-      <h2><span class="dot"></span>算法实现结论 <span class="tag-blue">2026-08-13</span></h2>
+      <h2><span class="dot"></span>算法建模结论 <span class="tag-blue">2026-08-13</span></h2>
       <div id="aboutAlgo" class="about-body">加载中…</div>
     </div>
     <div class="card">
@@ -295,8 +295,8 @@
   </section>
 
   <div class="foot">
-    实现自《ClearSky》3.4.0 建模分析 · 接口: stargazing.twtapp.com / nodeapi.knockdream.com / 7timer.info / NSMC / MetNo / Open-Meteo<br>
-    观星指数为预报(ICON/IFS模型)，晴天钟与卫星云图为实况，请以实况为准 · 密钥均为 App 内公开硬编码，仅学习用途
+    数据源: ICON/IFS 数值预报 / 7Timer / NSMC 风云4B / MetNo / Open-Meteo<br>
+    观星指数为预报(ICON/IFS模型)，晴天钟与卫星云图为实况，请以实况为准 · 公开演示密钥仅供低频率个人/学习调用
   </div>
 </div>
 <div id="toast"></div>

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ClearSky观星指数实现算法验证
+观星指数评分算法验证
 ============================
 方法:
   1. 按"地点"分组: 每次随机 10 地点训练、4 地点测试, 重复 20 次取平均
@@ -82,7 +82,7 @@ def main():
             p = base_pred(model, r)
             print(f"   {r['name']:9s} {r['date']} {r['hourLabel']}  cloud={r.cloudIndex:.3f} "
                   f"trans={r.transparency:.3f} seeing={r.seeing:.3f} dew={r.dewRisk:.3f} "
-                  f"| 真值={r.score:6.2f} 实现={p:6.2f} 误差={r.score-p:+6.2f}")
+                  f"| 真值={r.score:6.2f} 预测={p:6.2f} 误差={r.score-p:+6.2f}")
 
     print("\n" + "="*76)
     print("C. 天气封顶统计 (全 2016 行):")

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""ClearSky观星指数实现 - 命令行入口
+"""观星指数评分 - 命令行入口
 
 用法:
     python -m clearsky.cli info                        # 查看算法元数据
@@ -72,7 +72,7 @@ def cmd_check(args):
 
 
 def main():
-    p = argparse.ArgumentParser(prog="python -m clearsky.cli", description="ClearSky观星指数实现 CLI")
+    p = argparse.ArgumentParser(prog="python -m clearsky.cli", description="观星指数评分 CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("info", help="打印算法元数据")
     sub.add_parser("test", help="运行复现测试")
